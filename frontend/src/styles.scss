@@ -1,0 +1,212 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --font-family: 'Inter', sans-serif;
+}
+
+html {
+    height: 100%;
+    margin: 0;
+    
+    /* Alapértelmezett világos háttér */
+    background-color: #f3f4f6; 
+    
+    /* Görgetés kezelése */
+    overflow-y: auto; 
+    font-family: var(--font-family);
+    transition: background-color 0.3s ease;
+}
+
+/* 2. BODY ALAP (LIGHT) */
+body {
+    min-height: 100%; /* Legalább akkora, mint az ablak */
+    height: auto;     /* De nőhet nagyobbra is */
+    margin: 0;
+    
+    /* A body is megkapja ugyanazt a hátteret */
+    background-color: #f3f4f6; 
+    color: #1f2937;
+    
+    font-family: var(--font-family);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    
+    overflow-x: hidden; 
+    width: 100%;
+}
+
+/* 3. SÖTÉT MÓD - ITT A JAVÍTÁS */
+/* Fontos: A :root.my-app-dark html szelektorral a html elemet is színezzük! */
+:root.my-app-dark,
+:root.my-app-dark html, 
+:root.my-app-dark body {
+    background-color: #111827 !important; /* A sötétkék szín */
+    color: rgba(255, 255, 255, 0.87);
+}
+
+/* Kiegészítő PrimeNG változók sötét módhoz */
+:root.my-app-dark {
+    --p-surface-border: rgba(255, 255, 255, 0.15) !important; 
+}
+
+.modern-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 0; 
+    overflow: hidden; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    
+
+    color: inherit;
+}
+
+:root.my-app-dark .modern-card {
+    background: var(--p-surface-card);         
+    border: 1px solid var(--p-surface-border); 
+    box-shadow: none; 
+}
+
+
+.stat-border-green { border: 2px solid #10b981 !important; } 
+.stat-border-blue  { border: 2px solid #3b82f6 !important; } 
+.stat-border-orange{ border: 2px solid #f97316 !important; } 
+.stat-border-red   { border: 2px solid #ef4444 !important; } 
+
+:root.my-app-dark .stat-border-green { background-color: rgba(16, 185, 129, 0.05) !important; }
+:root.my-app-dark .stat-border-blue  { background-color: rgba(59, 130, 246, 0.05) !important; }
+:root.my-app-dark .stat-border-orange{ background-color: rgba(249, 115, 22, 0.05) !important; }
+:root.my-app-dark .stat-border-red   { background-color: rgba(239, 68, 68, 0.05) !important; }
+
+
+.p-datatable {
+    .p-datatable-header {
+        background: transparent;
+        border: none;
+        padding: 1.5rem;
+    }
+
+    .p-datatable-thead > tr > th {
+        background: transparent;
+        color: #6b7280; 
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        border: none;
+        border-bottom: 1px solid #f3f4f6;
+        padding: 1rem 1.5rem;
+    }
+
+    .p-datatable-tbody > tr {
+        background: transparent;
+        color: inherit;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f3f4f6;
+
+        > td {
+            padding: 1.2rem 1.5rem;
+            border: none;
+            font-size: 0.95rem;
+        }
+
+        &:hover {
+            background-color: rgba(0,0,0,0.02) !important;
+        }
+    }
+    
+    .p-frozen-column {
+        border-left: 1px solid #e5e7eb !important;
+        box-shadow: -5px 0 10px -5px rgba(0,0,0,0.05);
+        z-index: 1; 
+    }
+}
+
+:root.my-app-dark .p-datatable {
+    .p-datatable-thead > tr > th {
+        color: var(--p-text-muted-color); 
+        border-bottom: 1px solid var(--p-surface-border);
+    }
+    
+    .p-datatable-tbody > tr {
+        border-bottom: 1px solid var(--p-surface-border);
+        
+        &:hover {
+            background-color: rgba(255,255,255,0.04) !important;
+        }
+    }
+
+    .p-frozen-column {
+        border-left: 1px solid var(--p-surface-border) !important;
+        box-shadow: -5px 0 10px -5px rgba(0,0,0,0.3); 
+    }
+}
+
+
+.p-sidebar-header {
+    padding: 1.5rem !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+:root.my-app-dark .p-sidebar-header {
+    border-bottom: 1px solid var(--p-surface-border) !important;
+}
+
+.p-sidebar-mask {
+    transition-duration: 0.2s !important;
+    
+    backdrop-filter: blur(4px);
+    
+    background-color: rgba(0, 0, 0, 0.4) !important; 
+}
+
+.p-sidebar {
+    box-shadow: -5px 0 25px rgba(0,0,0,0.15) !important;
+    border-left: 1px solid var(--p-surface-border);
+}
+
+
+input, button, select, textarea {
+    appearance: none;
+    -webkit-appearance: none; 
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+
+input[type="text"], input[type="search"] {
+    background-color: transparent !important; 
+    border: 1px solid rgba(255, 255, 255, 0.1); 
+    color: inherit; 
+}
+
+*:focus {
+    outline: none !important;
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.route-container {
+    position: relative;
+    width: 100%;
+    
+    /* Ez biztosítja, hogy mindig legyen magassága, ne ugorjon össze */
+    min-height: calc(100vh - 80px); 
+    
+    /* Elrejti a beúszó oldal kilógó részeit */
+    overflow: hidden; 
+}
+
+/* Biztosítjuk, hogy az app-root is kitöltse a teret */
+app-root {
+    display: block;
+    min-height: 100vh;
+}

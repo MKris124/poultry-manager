@@ -1,0 +1,5 @@
+.p-datatable .p-frozen-column {
+    border-left: 1px solid var(--p-content-border-color) !important;
+    box-shadow: -5px 0 5px -5px rgba(0,0,0,0.1);
+    z-index: 1; 
+}

@@ -1,0 +1,171 @@
+<p-toast position="top-center"></p-toast>
+<p-confirmPopup></p-confirmPopup> <div class="layout-content" style="max-width: 1400px; margin: 40px auto; padding: 0 20px;"></div>
+<div class="layout-content" style="max-width: 1400px; margin: 40px auto; padding: 0 20px;">
+    
+    <div class="flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div class="flex align-items-center gap-2">
+            <div>
+                <h1 class="font-bold m-0 text-3xl">Partnerek</h1>
+                <p class="text-500 mt-2 m-0">Termelők és beszállítók listája</p>
+            </div>
+        </div>
+
+        <div class="flex align-items-center gap-3 flex-wrap"> 
+            
+            <button *ngIf="selectedPartners.length > 1" 
+                    pButton 
+                    label="Összesítés ({{selectedPartners.length}})" 
+                    icon="pi pi-users" 
+                    class="p-button-warning border-round-2xl shadow-2 fadein animation-duration-300 white-space-nowrap"
+                    (click)="openGroupStats()">
+            </button>
+            <button *ngIf="selectedPartners.length > 0" 
+                    pButton 
+                    icon="pi pi-download" 
+                    class="p-button-help p-button-outlined border-round-2xl w-3rem h-3rem fadein animation-duration-300 flex-shrink-0"
+                    (click)="exportSelectedData()">
+            </button>
+
+            <button pButton 
+                    icon="pi pi-trash" 
+                    class="p-button-danger p-button-outlined border-round-2xl w-3rem h-3rem" 
+                    pTooltip="Minden adat törlése" 
+                    tooltipPosition="bottom"
+                    (click)="deleteAllData()">
+            </button>
+            
+            <span class="relative block flex-1" style="min-width: 250px; max-width: 50rem;">
+                <i class="pi pi-search text-500 absolute" 
+                   style="top: 50%; transform: translateY(-50%); left: 1rem; z-index: 1;">
+                </i>
+
+                
+            
+                <input type="text" 
+                       pInputText 
+                       placeholder="Keresés..." 
+                       (input)="dt1.filterGlobal($any($event.target).value, 'contains')" 
+                       class="w-full border-round-2xl surface-card border-none shadow-1 py-2 pl-6" 
+                       style="padding-left: 3rem !important;"/> 
+            </span>
+
+            <p-button label="Új Partner" icon="pi pi-plus" 
+                      (click)="createDialog.show()" 
+                      styleClass="border-round-2xl px-4 bg-primary border-none shadow-2 white-space-nowrap">
+            </p-button>
+            </div>
+    </div>
+
+    <div class="modern-card">
+        <p-table #dt1 
+                 [value]="partners" 
+                 [(selection)]="selectedPartners" 
+                 dataKey="id"
+                 [globalFilterFields]="['name', 'city', 'county', 'id']"
+                 [rowHover]="true" 
+                 responsiveLayout="scroll">
+            
+            <ng-template pTemplate="header">
+                <tr>
+                    <th style="width: 3rem"><p-tableHeaderCheckbox></p-tableHeaderCheckbox></th>
+                    <th style="width: 10%" pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
+                    <th style="width: 30%" pSortableColumn="name">Név <p-sortIcon field="name"></p-sortIcon></th>
+                    <th style="width: 25%" pSortableColumn="city">Telephely <p-sortIcon field="city"></p-sortIcon></th>
+                    <th style="width: 25%" pSortableColumn="county">Megye <p-sortIcon field="county"></p-sortIcon></th>
+                    <th style="width: 5%"></th>
+                </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-partner>
+                <tr class="cursor-pointer table-row-hover" (click)="openPartnerStats(partner)">
+                    <td (click)="$event.stopPropagation()" class="py-4">
+                        <p-tableCheckbox [value]="partner"></p-tableCheckbox>
+                    </td>
+                    
+                    <td><span class="opacity-60">#{{partner.id}}</span></td>
+                    <td><div class="font-bold text-lg">{{partner.name}}</div></td>
+                    <td>
+                        <div class="flex align-items-center text-700">
+                            <i class="pi pi-map-marker text-teal-500 mr-2 text-lg"></i>
+                            {{partner.city}}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="county-badge">
+                            {{partner.county}}
+                        </span>
+                    </td>
+                    
+                    <td class="text-right">
+                        <div class="flex justify-content-end gap-2">
+                            <button pButton icon="pi pi-pencil" 
+                                    class="p-button-rounded p-button-text p-button-warning w-2rem h-2rem" 
+                                    pTooltip="Szerkesztés" tooltipPosition="top"
+                                    (click)="editPartner(partner); $event.stopPropagation()">
+                            </button>
+
+                            <button pButton icon="pi pi-trash" 
+                                    class="p-button-rounded p-button-text p-button-danger w-2rem h-2rem" 
+                                    pTooltip="Törlés" tooltipPosition="top"
+                                    (click)="deletePartner($event, partner); $event.stopPropagation()">
+                            </button>
+                            
+                            <i class="pi pi-chevron-right text-400 ml-2"></i>
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+                <tr>
+                    <td colspan="6" class="text-center p-4 text-500">
+                        Nincs találat a keresési feltételeknek megfelelően.
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </div>
+</div>
+
+<p-sidebar
+    [(visible)]="sidebarVisible"
+    (onHide)="onSidebarHide()" 
+    position="right" 
+    [style]="{width: '60%'}" 
+    styleClass="w-full md:w-9 lg:w-8 border-none shadow-8"
+    [modal]="true" 
+    [dismissible]="true" 
+    [showCloseIcon]="true"
+    [blockScroll]="false"
+    transitionOptions="300ms cubic-bezier(0, 0, 0.2, 1)">
+
+    <ng-template pTemplate="header">
+        <div class="flex align-items-center gap-3" *ngIf="selectedPartner">
+            <div class="bg-primary-50 text-primary border-round p-2">
+                <i class="pi pi-user text-2xl"></i>
+            </div>
+            <div>
+                <div class="font-bold text-3xl text-900">{{ selectedPartner.name }}</div>
+                <div class="text-500">Részletes adatlap</div>
+            </div>
+        </div>
+    </ng-template>
+
+    <div class="mt-4">
+        <app-partner-detail *ngIf="selectedPartner" [partner]="selectedPartner"></app-partner-detail>
+    </div>
+</p-sidebar>
+
+<app-partner-create-dialog #createDialog (onSave)="onPartnerCreated()"></app-partner-create-dialog>
+
+<div style="position: fixed; bottom: 30px; right: 30px; z-index: 1000;">
+    <button pButton 
+            icon="pi pi-file-excel" 
+            label="Excel Import" 
+            class="p-button-rounded p-button-success shadow-4 font-bold border-none" 
+            style="height: 3.5rem; padding-left: 1.5rem; padding-right: 1.5rem; background-color: #10b981;"
+            (click)="importDialog.show()">
+    </button>
+</div>
+
+<app-excel-import-dialog #importDialog (onClosed)="loadPartners()"></app-excel-import-dialog>

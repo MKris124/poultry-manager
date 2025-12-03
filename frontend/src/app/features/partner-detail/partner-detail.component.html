@@ -1,0 +1,277 @@
+<div (click)="$event.stopPropagation()">
+    
+    <div *ngIf="selectedStats || shipments.length" class="grid mb-5">
+        <div class="col-6 md:col-3">
+            <div class="modern-card p-3 h-full stat-border-green">
+                <span class="text-500 block mb-2 text-sm font-bold">Átlag Máj Súly</span>
+                <div class="text-3xl font-bold" [ngClass]="getLiverColor(selectedStats?.avgLiverWeight)">
+                    {{ selectedStats?.avgLiverWeight | number:'1.2-2' }} kg
+                </div>
+            </div>
+        </div>
+        <div class="col-6 md:col-3">
+            <div class="modern-card p-3 h-full stat-border-blue">
+                <span class="text-500 block mb-2 text-sm font-bold">Kóser Arány</span>
+                <div class="text-3xl font-bold" [ngClass]="getKosherColor(selectedStats?.avgKosherPercent)">
+                    {{ selectedStats?.avgKosherPercent | number:'1.2-2' }}%
+                </div>
+            </div>
+        </div>
+        <div class="col-6 md:col-3">
+            <div class="modern-card p-3 h-full stat-border-orange">
+                <span class="text-500 block mb-2 text-sm font-bold">Ráhízás</span>
+                <div class="text-3xl font-bold text-orange-500">
+                    {{ selectedStats?.avgFatteningRate | number:'1.2-2' }} kg
+                </div>
+            </div>
+        </div>
+        <div class="col-6 md:col-3">
+            <div class="modern-card p-3 h-full stat-border-red">
+                <span class="text-500 block mb-2 text-sm font-bold">Átlag Elhullás %</span>
+                
+                <div class="text-3xl font-bold text-red-500">
+                    {{ selectedStats?.avgMortalityRate | number:'1.2-2' }}%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <app-trend-chart [shipments]="shipments"></app-trend-chart>
+
+    <div class="flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h3 class="text-900 m-0 flex align-items-center">
+            <i class="pi pi-list mr-2 text-primary"></i> Beszállítási Előzmények
+        </h3>
+        
+        <div class="flex gap-2">
+            
+            <div class="flex align-items-center mr-2 gap-2">
+                <span class="text-500 font-bold mr-2 text-sm">Sorok:</span>
+
+                <p-selectButton [options]="rowOptions" 
+                                [(ngModel)]="rows" 
+                                optionLabel="label" 
+                                optionValue="value"
+                                styleClass="p-button-sm">
+                </p-selectButton>
+
+            <p-multiSelect [options]="cols" 
+                           [(ngModel)]="selectedColumns" 
+                           optionLabel="header"
+                           selectedItemsLabel="{0} oszlop megjelenítve" 
+                           [style]="{minWidth: '150px'}"
+                           placeholder="Oszlopok"
+                           display="chip">
+            </p-multiSelect>
+
+            <button pButton label="Visszavonás" icon="pi pi-refresh" 
+                    class="p-button-text p-button-secondary"
+                    (click)="revertAll()"
+                    [disabled]="!hasUnsavedChanges || isSaving">
+            </button>
+
+            <button pButton label="Változások Mentése" icon="pi pi-save" 
+                    class="p-button-success"
+                    (click)="saveAll()"
+                    [disabled]="!hasUnsavedChanges"
+                    [loading]="isSaving">
+            </button>
+
+            <button pButton label="Új" icon="pi pi-plus" 
+                    class="p-button-outlined"
+                    (click)="addEmptyRow()">
+            </button>
+        </div>
+    </div>
+
+    <p-toast position="top-center"></p-toast>
+
+    <div *ngIf="!shipments.length" class="text-center p-4 text-500">
+        Nincs megjeleníthető adat. Kattints a "Új" gombra új felvételéhez.
+    </div>
+
+    <p-confirmPopup></p-confirmPopup> 
+    
+    <div *ngIf="shipments.length" class="modern-card overflow-hidden">
+        
+        <p-table [value]="shipments" 
+                 [paginator]="true"
+                 [rows]="rows"
+                 [rowTrackBy]="trackByFn"
+                 dataKey="id" 
+                 styleClass="p-datatable-sm" 
+                 [rowHover]="true" 
+                 [scrollable]="true" 
+                 scrollHeight="600px" 
+                 scrollDirection="both">
+            
+            <ng-template pTemplate="header">
+                <tr>
+                    <th *ngIf="isColVisible('deliveryCode')" style="min-width:120px" pSortableColumn="deliveryCode">Kód <p-sortIcon field="deliveryCode"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('deliveryDate')" style="min-width:110px" pSortableColumn="deliveryDate">Száll. dátum <p-sortIcon field="deliveryDate"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('processingDate')" style="min-width:110px" pSortableColumn="processingDate">Vágás dátum <p-sortIcon field="processingDate"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('processingWeek')" style="min-width:110px" class="text-center" pSortableColumn="processingWeek">Vágási Hét <p-sortIcon field="processingWeek"></p-sortIcon></th>
+
+                    <th *ngIf="isColVisible('quantity')" style="min-width:110px" class="text-right" pSortableColumn="quantity">Befogott db <p-sortIcon field="quantity"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('totalWeight')" style="min-width:110px" class="text-right" pSortableColumn="totalWeight">Befogott kg <p-sortIcon field="totalWeight"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('avgWeight')" style="min-width:110px" class="text-right text-blue-400 font-bold" pSortableColumn="avgWeight">Átlag kg <p-sortIcon field="avgWeight"></p-sortIcon></th>
+
+                    <th *ngIf="isColVisible('netQuantity')" style="min-width:110px" class="text-right text-blue-400 font-bold">Beszáll. db</th>
+                    <th *ngIf="isColVisible('netWeight')" style="min-width:110px" class="text-right">Beszáll. kg</th>
+                    <th *ngIf="isColVisible('netAvgWeight')" style="min-width:110px" class="text-right text-blue-400 font-bold">Leadott átl. kg</th>
+
+                    <th *ngIf="isColVisible('transportMortality')" style="min-width:110px" class="text-right" pSortableColumn="transportMortality">Útihulla db <p-sortIcon field="transportMortality"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('transportMortalityKg')" style="min-width:110px" class="text-right" pSortableColumn="transportMortalityKg">Útihulla kg <p-sortIcon field="transportMortalityKg"></p-sortIcon></th>
+
+                    <th *ngIf="isColVisible('liverWeight')" style="min-width:110px" class="text-right" pSortableColumn="liverWeight">Máj kg <p-sortIcon field="liverWeight"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('kosherPercent')" style="min-width:110px" class="text-right" pSortableColumn="kosherPercent">Kóser % <p-sortIcon field="kosherPercent"></p-sortIcon></th>
+                    
+                    <th *ngIf="isColVisible('fatteningRate')" style="min-width:110px" class="text-right text-orange-500" pSortableColumn="fatteningRate">Ráhízás <p-sortIcon field="fatteningRate"></p-sortIcon></th>
+                    
+                    <th *ngIf="isColVisible('fatteningDays')" style="min-width:110px" class="text-right" pSortableColumn="fatteningDays">Tömés napok <p-sortIcon field="fatteningDays"></p-sortIcon></th>
+                    
+                    <th *ngIf="isColVisible('mortalityCount')" style="min-width:110px" class="text-right" pSortableColumn="mortalityCount">Elhullás <p-sortIcon field="mortalityCount"></p-sortIcon></th>
+                    <th *ngIf="isColVisible('mortalityRate')" style="min-width:110px" class="text-right text-blue-400 font-bold" pSortableColumn="mortalityRate">Elh. % <p-sortIcon field="mortalityRate"></p-sortIcon></th>
+                    
+                    <th style="min-width:4rem" pFrozenColumn alignFrozen="right"></th>
+                </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-ship let-ri="rowIndex">
+                <tr>
+                    <td *ngIf="isColVisible('deliveryCode')" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input">
+                                <input pInputText [(ngModel)]="ship.deliveryCode" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm" placeholder="001/25" [ngClass]="{'ng-invalid ng-dirty': !ship.deliveryCode}">
+                            </ng-template>
+                            <ng-template pTemplate="output">
+                                <div class="font-bold">{{ ship.deliveryCode }}</div>
+                                <span *ngIf="!ship.deliveryCode" class="text-red-500 font-bold text-sm">Kötelező!</span>
+                                <div *ngIf="partner.isGroup && ship.partner" class="text-sm text-500 mt-1 flex align-items-center" style="white-space: nowrap;">
+                                    <i class="pi pi-user mr-1 text-xs"></i> {{ ship.partner.name }}
+                                </div>
+                            </ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('deliveryDate')" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input type="date" pInputText [(ngModel)]="ship.deliveryDate" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.deliveryDate | date:'yyyy.MM.dd' }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('processingDate')" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input type="date" pInputText [(ngModel)]="ship.processingDate" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm"></ng-template>
+                            <ng-template pTemplate="output"><span *ngIf="ship.processingDate">{{ ship.processingDate | date:'yyyy.MM.dd' }}</span><span *ngIf="!ship.processingDate">-</span></ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('processingWeek')" class="text-center font-bold">
+                        <span *ngIf="ship.processingDate">{{ ship.processingDate | date:'w' }}</span>
+                        <span *ngIf="!ship.processingDate" class="text-300">-</span>
+                    </td>
+
+                    <td *ngIf="isColVisible('quantity')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.quantity" (ngModelChange)="recalculateAvg(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.quantity }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+                    <td *ngIf="isColVisible('totalWeight')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.totalWeight" (ngModelChange)="recalculateAvg(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.totalWeight | number:'1.0-0' }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+                    <td *ngIf="isColVisible('avgWeight')" class="text-right text-blue-400 font-medium bg-blue-900 bg-opacity-10">
+                        {{ ship.avgWeight | number:'1.2-2' }}
+                    </td>
+
+                    <td *ngIf="isColVisible('netQuantity')" class="text-right text-blue-400 font-medium bg-blue-900 bg-opacity-10">
+                        {{ (ship.quantity - (ship.mortalityCount || 0)) }}
+                    </td>
+
+                    <td *ngIf="isColVisible('netWeight')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input">
+                                <input pInputText type="number" min="0" [(ngModel)]="ship.netWeight" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right">
+                            </ng-template>
+                            <ng-template pTemplate="output">{{ ship.netWeight | number:'1.0-0' }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('netAvgWeight')" class="text-right text-blue-400 font-bold bg-blue-900 bg-opacity-10">
+                        {{ (ship.quantity - (ship.mortalityCount || 0)) > 0 
+                           ? ((ship.netWeight || 0) / (ship.quantity - (ship.mortalityCount || 0)) | number:'1.2-2') 
+                           : '0.00' 
+                        }}
+                    </td>
+
+                    <td *ngIf="isColVisible('transportMortality')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.transportMortality" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.transportMortality }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+                    <td *ngIf="isColVisible('transportMortalityKg')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.transportMortalityKg" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.transportMortalityKg | number:'1.1-1' }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('liverWeight')" class="text-right font-bold" [ngClass]="getLiverColor(ship.liverWeight)" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" step="0.01" [(ngModel)]="ship.liverWeight" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.liverWeight | number:'1.2-2' }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+                    <td *ngIf="isColVisible('kosherPercent')" class="text-right" [ngClass]="getKosherColor(ship.kosherPercent)" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" step="0.1" [(ngModel)]="ship.kosherPercent" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.kosherPercent | number:'1.2-2' }}%</ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('fatteningRate')" class="text-right font-bold text-orange-500 bg-blue-900 bg-opacity-10">
+                        <ng-container *ngIf="ship.quantity > 0 && (ship.quantity - (ship.mortalityCount || 0)) > 0; else noRate">
+                            {{ 
+                               ((ship.netWeight / (ship.quantity - (ship.mortalityCount || 0))) - 
+                               (ship.totalWeight / ship.quantity)) | number:'1.2-2' 
+                            }}
+                        </ng-container>
+                        <ng-template #noRate>0.00</ng-template>
+                    </td>
+
+                    <td *ngIf="isColVisible('fatteningDays')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.fatteningDays" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.fatteningDays }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+
+                    <td *ngIf="isColVisible('mortalityCount')" class="text-right" pEditableColumn>
+                        <p-cellEditor>
+                            <ng-template pTemplate="input"><input pInputText type="number" [(ngModel)]="ship.mortalityCount" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
+                            <ng-template pTemplate="output">{{ ship.mortalityCount }}</ng-template>
+                        </p-cellEditor>
+                    </td>
+                    
+                    <td *ngIf="isColVisible('mortalityRate')" class="text-right text-blue-400 font-bold bg-blue-900 bg-opacity-10">
+                        {{ (ship.quantity > 0 && ship.mortalityCount) 
+                           ? ((ship.mortalityCount / ship.quantity) * 100 | number:'1.2-2') 
+                           : '0.00' 
+                        }}%
+                    </td>
+
+                    <td style="min-width:4rem; text-align: right;" pFrozenColumn alignFrozen="right">
+                        <button *ngIf="ship.id" pButton icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger w-2rem h-2rem" (click)="deleteShipment($event, ship)"></button>
+                        <button *ngIf="!ship.id" pButton icon="pi pi-times" class="p-button-rounded p-button-text p-button-secondary w-2rem h-2rem" (click)="onRowCancel(ship, ri)"></button>
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </div>
+</div>

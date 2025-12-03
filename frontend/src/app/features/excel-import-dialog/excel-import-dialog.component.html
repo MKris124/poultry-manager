@@ -1,0 +1,45 @@
+<p-dialog header="Excel Importálás" 
+          [(visible)]="visible" 
+          [modal]="true" 
+          [style]="{width: '500px'}"
+          [draggable]="false" 
+          [resizable]="false">
+    
+    <div class="p-3">
+        <p class="mb-4 text-500 line-height-3">
+            Töltsd fel a heti vágási jelentést (<b>.xlsx</b>). <br>
+            A rendszer automatikusan felismeri a partnereket, vagy létrehozza őket, ha újak.
+        </p>
+        
+        <p-fileUpload 
+            #fileUpload 
+            mode="advanced" 
+            name="file"
+            accept=".xlsx" 
+            maxFileSize="5000000" 
+            [customUpload]="true"
+            (uploadHandler)="uploadHandler($event)"
+            [auto]="true"
+            chooseLabel="Excel Fájl Kiválasztása"
+            uploadLabel="Feltöltés"
+            cancelLabel="Mégse"
+            styleClass="w-full">
+            
+            <ng-template pTemplate="content">
+                <div *ngIf="isUploading" class="text-center p-4">
+                    <i class="pi pi-spin pi-spinner text-4xl text-primary mb-3"></i>
+                    <div class="font-bold">Feldolgozás folyamatban...</div>
+                </div>
+
+                <div *ngIf="!isUploading" 
+                     class="text-center p-5 cursor-pointer border-2 border-dashed surface-border border-round hover:surface-hover transition-colors transition-duration-200" 
+                     (click)="fileUpload.choose()">
+                    
+                    <i class="pi pi-cloud-upload text-6xl text-400 mb-3"></i>
+                    <p class="m-0 text-700 font-medium">Húzd ide a fájlt vagy kattints a feltöltéshez.</p>
+                </div>
+            </ng-template>
+
+        </p-fileUpload>
+    </div>
+</p-dialog>

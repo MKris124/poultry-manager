@@ -1,0 +1,83 @@
+<div class="layout-content" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+
+    <div class="flex justify-content-between align-items-center mb-5">
+        <div class="flex align-items-center gap-3">
+            <div class="bg-yellow-500 text-white border-round p-3 shadow-4">
+                <i class="pi pi-star-fill text-4xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold m-0 text-3xl">Termelői ranglista</h1>
+                <p class="text-500 mt-2">Rangsorolás a teljesítmény pontszáma alapján</p>
+            </div>
+        </div>
+        
+        <button pButton label="Vissza" icon="pi pi-arrow-left" 
+                routerLink="/partners" 
+                class="p-button-outlined border-round-2xl">
+        </button>
+    </div>
+
+    <div class="modern-card overflow-hidden">
+        <p-table [value]="rankedPartners" styleClass="p-datatable-lg" [rowHover]="true">
+            
+            <ng-template pTemplate="header">
+                <tr>
+                    <th style="width: 4rem" class="text-center">#</th>
+                    <th style="width: 30%">Név</th>
+                    
+                    <th class="text-right text-500 font-normal">Máj (kg)</th>
+                    <th class="text-right text-500 font-normal">Kóser %</th>
+                    <th class="text-right text-500 font-normal">Elhullás %</th>
+
+                    <th class="text-right text-primary text-xl" style="width: 150px">
+                        PONTSZÁM
+                    </th>
+                </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-partner let-ri="rowIndex">
+                <tr [ngClass]="">
+                    
+                    <td class="text-center text-2xl">{{ getMedal(ri) }}</td>
+                    
+                    <td>
+                        <div class="font-bold text-xl">{{ partner.partnerName }}</div>
+                    </td>
+                    
+                    <td class="text-right text-lg">
+                        {{ partner.avgLiverWeight | number:'1.2-2' }}
+                    </td>
+                    <td class="text-right text-lg">
+                        {{ partner.avgKosherPercent | number:'1.1-1' }}%
+                    </td>
+                    <td class="text-right text-lg text-500">
+                        {{ partner.avgMortalityRate | number:'1.2-2' }}%
+                    </td>
+
+                    <td class="text-right">
+                        <div class="font-black text-3xl text-primary">
+                            {{ partner.totalScore | number:'1.0-0' }}
+                        </div>
+                        <div class="text-xs text-500">pont</div>
+                    </td>
+
+                </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+                <tr>
+                    <td colspan="6" class="text-center p-5 text-500">
+                        Még nincs elegendő adat a rangsoroláshoz.
+                    </td>
+                </tr>
+            </ng-template>
+
+        </p-table>
+    </div>
+    
+    <div class="text-center mt-4 text-500 text-sm">
+        <i class="pi pi-info-circle mr-1"></i>
+        Pontszámítás: (Kóser % × 5) + (Máj dkg × 4)
+    </div>
+
+</div>

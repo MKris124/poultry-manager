@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: poultry-management
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/poultry_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+server:
+  error:
+    include-message: always
+    include-binding-errors: always

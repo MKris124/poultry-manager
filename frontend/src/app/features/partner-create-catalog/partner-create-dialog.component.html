@@ -1,0 +1,57 @@
+<p-dialog header="Új Partner Felvétele" 
+          [(visible)]="visible" 
+          [modal]="true" 
+          [style]="{width: '450px'}" 
+          [draggable]="false" 
+          [resizable]="false">
+    
+    <div class="flex flex-column gap-4 pt-2">
+        
+        <div class="flex flex-column gap-2">
+            <label for="id" class="font-bold text-sm">Azonosító (ID)</label>
+            <input pInputText id="id" type="number" [(ngModel)]="partner.id" placeholder="pl. 123" class="w-full" [disabled]="isEditMode"/>
+        </div>
+        
+        <div class="flex flex-column gap-2">
+            <label for="name" class="font-bold text-sm">Név</label>
+            <input pInputText id="name" [(ngModel)]="partner.name" placeholder="pl. Példa Péter" class="w-full" />
+        </div>
+
+        <div class="flex flex-column gap-2">
+            <label for="county" class="font-bold text-sm">Megye</label>
+            <p-dropdown 
+                inputId="county"
+                [options]="counties" 
+                [(ngModel)]="partner.county" 
+                (onChange)="onCountyChange()"
+                placeholder="Válassz megyét..." 
+                [style]="{'width':'100%'}"
+                appendTo="body">
+            </p-dropdown>
+        </div>
+
+        <div class="flex flex-column gap-2">
+            <label for="city" class="font-bold text-sm">Telephely</label>
+            <p-dropdown 
+                inputId="city"
+                [options]="cities" 
+                [(ngModel)]="partner.city" 
+                [filter]="true"
+                filterBy="label" 
+                [showClear]="true"
+                placeholder="Válassz települést..." 
+                [disabled]="!partner.county"
+                emptyFilterMessage="Nincs találat"
+                [style]="{'width':'100%'}"
+                appendTo="body">
+            </p-dropdown>
+            <small *ngIf="!partner.county" class="text-500">Előbb válassz megyét!</small>
+        </div>
+
+    </div>
+
+    <ng-template pTemplate="footer">
+        <p-button label="Mégse" icon="pi pi-times" (click)="visible = false" styleClass="p-button-text"></p-button>
+        <p-button label="Mentés" icon="pi pi-check" (click)="save()" [disabled]="!partner.id || !partner.name || !partner.city"></p-button>
+    </ng-template>
+</p-dialog>
