@@ -163,7 +163,7 @@ public class ShipmentImportService {
             shipment.setNetWeight(netWeight);
 
             currentField = "Kóser % (O oszlop)";
-            shipment.setKosherPercent(ExcelHelper.getCellNum(row, 14) * 100);
+            shipment.setKosherPercent(ExcelHelper.getCellNum(row, 14));
 
             currentField = "Máj súly (P oszlop)";
             shipment.setLiverWeight(ExcelHelper.getCellNum(row, 15));

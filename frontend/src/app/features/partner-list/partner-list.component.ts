@@ -17,7 +17,8 @@ import { PartnerDetailComponent } from '../partner-detail/partner-detail.compone
 import { PartnerCreateDialogComponent } from '../partner-create-catalog/partner-create-catalog.component';
 import { ExcelImportDialogComponent } from '../excel-import-dialog/excel-import-dialog.component';
 import { ShipmentService } from '../../services/shipment.service';
-import { PartnerService } from '../../services/partner.service'; 
+import { PartnerService } from '../../services/partner.service';
+import { ConfirmDialog } from 'primeng/confirmdialog';
 
 @Component({
   selector: 'app-partner-list',
@@ -28,7 +29,7 @@ import { PartnerService } from '../../services/partner.service';
   imports: [
     CommonModule, TableModule, SidebarModule, ButtonModule, ToastModule,
     IconFieldModule, InputIconModule, PartnerDetailComponent, PartnerCreateDialogComponent,
-    ExcelImportDialogComponent, TooltipModule, ConfirmPopupModule 
+    ExcelImportDialogComponent, TooltipModule, ConfirmPopupModule, ConfirmDialog
   ]
 })
 export class PartnerListComponent implements OnInit {
@@ -153,7 +154,8 @@ export class PartnerListComponent implements OnInit {
           icon: 'pi pi-exclamation-triangle',
           acceptLabel: 'Igen',
           rejectLabel: 'Nem',
-          acceptButtonStyleClass: 'p-button-danger p-button-sm',
+          acceptButtonStyleClass: 'p-button-danger p-button-sm w-6rem',
+          rejectButtonStyleClass: 'p-button-text p-button-sm w-6rem',
           accept: () => {
               this.partnerService.deletePartner(partner.id).subscribe({
                   next: () => {
