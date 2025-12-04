@@ -1,5 +1,6 @@
 package com.poultry.backend.services;
 
+import com.poultry.backend.dtos.PartnerTotalQuantityDTO;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
@@ -10,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +21,21 @@ public class PartnerService {
     private final ShipmentRepository shipmentRepository;
 
     public List<Partner> getAllPartners() {
-        return partnerRepository.findAll();
+        List<Partner> partners = partnerRepository.findAll();
+
+        List<PartnerTotalQuantityDTO> totals = shipmentRepository.getTotalQuantitiesByPartner();
+
+        Map<Long, Long> quantityMap = totals.stream()
+                .collect(Collectors.toMap(
+                        PartnerTotalQuantityDTO::getPartnerId,
+                        dto -> dto.getTotalQuantity() != null ? dto.getTotalQuantity() : 0L
+                ));
+
+        for (Partner p : partners) {
+            p.setTotalQuantity(quantityMap.getOrDefault(p.getId(), 0L));
+        }
+
+        return partners;
     }
 
     public Partner createPartner(Partner partner) {

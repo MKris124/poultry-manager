@@ -31,6 +31,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 })
 export class PartnerDetailComponent implements OnChanges {
   @Input() partner: any;
+  @Input() readOnly: boolean = false;
 
   shipments: any[] = [];
   clonedShipments: { [s: string]: any } = {};

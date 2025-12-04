@@ -64,20 +64,20 @@
                            display="chip">
             </p-multiSelect>
 
-            <button pButton label="Visszavonás" icon="pi pi-refresh" 
+            <button *ngIf="!readOnly" pButton label="Visszavonás" icon="pi pi-refresh" 
                     class="p-button-text p-button-secondary"
                     (click)="revertAll()"
                     [disabled]="!hasUnsavedChanges || isSaving">
             </button>
 
-            <button pButton label="Változások Mentése" icon="pi pi-save" 
+            <button *ngIf="!readOnly" pButton label="Változások Mentése" icon="pi pi-save" 
                     class="p-button-success"
                     (click)="saveAll()"
                     [disabled]="!hasUnsavedChanges"
                     [loading]="isSaving">
             </button>
 
-            <button pButton label="Új" icon="pi pi-plus" 
+            <button *ngIf="!readOnly" pButton label="Új" icon="pi pi-plus" 
                     class="p-button-outlined"
                     (click)="addEmptyRow()">
             </button>
@@ -87,7 +87,7 @@
     <p-toast position="top-center"></p-toast>
 
     <div *ngIf="!shipments.length" class="text-center p-4 text-500">
-        Nincs megjeleníthető adat. Kattints a "Új" gombra új felvételéhez.
+        Nincs megjeleníthető adat. <span *ngIf="!readOnly">Kattints az "Új" gombra új felvételéhez.</span>
     </div>
 
     <p-confirmPopup></p-confirmPopup> 
@@ -133,13 +133,13 @@
                     <th *ngIf="isColVisible('mortalityCount')" style="min-width:110px" class="text-right" pSortableColumn="mortalityCount">Elhullás <p-sortIcon field="mortalityCount"></p-sortIcon></th>
                     <th *ngIf="isColVisible('mortalityRate')" style="min-width:110px" class="text-right text-blue-400 font-bold" pSortableColumn="mortalityRate">Elh. % <p-sortIcon field="mortalityRate"></p-sortIcon></th>
                     
-                    <th style="min-width:4rem" pFrozenColumn alignFrozen="right"></th>
+                    <th *ngIf="!readOnly" style="min-width:4rem" pFrozenColumn alignFrozen="right"></th>
                 </tr>
             </ng-template>
 
             <ng-template pTemplate="body" let-ship let-ri="rowIndex">
                 <tr>
-                    <td *ngIf="isColVisible('deliveryCode')" pEditableColumn>
+                    <td *ngIf="isColVisible('deliveryCode')" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input">
                                 <input pInputText [(ngModel)]="ship.deliveryCode" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm" placeholder="001/25" [ngClass]="{'ng-invalid ng-dirty': !ship.deliveryCode}">
@@ -154,14 +154,14 @@
                         </p-cellEditor>
                     </td>
 
-                    <td *ngIf="isColVisible('deliveryDate')" pEditableColumn>
+                    <td *ngIf="isColVisible('deliveryDate')" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input type="date" pInputText [(ngModel)]="ship.deliveryDate" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm"></ng-template>
                             <ng-template pTemplate="output">{{ ship.deliveryDate | date:'yyyy.MM.dd' }}</ng-template>
                         </p-cellEditor>
                     </td>
 
-                    <td *ngIf="isColVisible('processingDate')" pEditableColumn>
+                    <td *ngIf="isColVisible('processingDate')" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input type="date" pInputText [(ngModel)]="ship.processingDate" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm"></ng-template>
                             <ng-template pTemplate="output"><span *ngIf="ship.processingDate">{{ ship.processingDate | date:'yyyy.MM.dd' }}</span><span *ngIf="!ship.processingDate">-</span></ng-template>
@@ -173,13 +173,13 @@
                         <span *ngIf="!ship.processingDate" class="text-300">-</span>
                     </td>
 
-                    <td *ngIf="isColVisible('quantity')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('quantity')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.quantity" (ngModelChange)="recalculateAvg(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.quantity }}</ng-template>
                         </p-cellEditor>
                     </td>
-                    <td *ngIf="isColVisible('totalWeight')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('totalWeight')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.totalWeight" (ngModelChange)="recalculateAvg(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.totalWeight | number:'1.0-0' }}</ng-template>
@@ -193,7 +193,7 @@
                         {{ (ship.quantity - (ship.mortalityCount || 0)) }}
                     </td>
 
-                    <td *ngIf="isColVisible('netWeight')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('netWeight')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input">
                                 <input pInputText type="number" min="0" [(ngModel)]="ship.netWeight" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right">
@@ -209,26 +209,26 @@
                         }}
                     </td>
 
-                    <td *ngIf="isColVisible('transportMortality')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('transportMortality')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.transportMortality" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.transportMortality }}</ng-template>
                         </p-cellEditor>
                     </td>
-                    <td *ngIf="isColVisible('transportMortalityKg')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('transportMortalityKg')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.transportMortalityKg" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.transportMortalityKg | number:'1.1-1' }}</ng-template>
                         </p-cellEditor>
                     </td>
 
-                    <td *ngIf="isColVisible('liverWeight')" class="text-right font-bold" [ngClass]="getLiverColor(ship.liverWeight)" pEditableColumn>
+                    <td *ngIf="isColVisible('liverWeight')" class="text-right font-bold" [ngClass]="getLiverColor(ship.liverWeight)" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" step="0.01" [(ngModel)]="ship.liverWeight" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.liverWeight | number:'1.2-2' }}</ng-template>
                         </p-cellEditor>
                     </td>
-                    <td *ngIf="isColVisible('kosherPercent')" class="text-right" [ngClass]="getKosherColor(ship.kosherPercent)" pEditableColumn>
+                    <td *ngIf="isColVisible('kosherPercent')" class="text-right" [ngClass]="getKosherColor(ship.kosherPercent)" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" step="0.1" [(ngModel)]="ship.kosherPercent" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.kosherPercent | number:'1.2-2' }}%</ng-template>
@@ -245,14 +245,14 @@
                         <ng-template #noRate>0.00</ng-template>
                     </td>
 
-                    <td *ngIf="isColVisible('fatteningDays')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('fatteningDays')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" min="0" [(ngModel)]="ship.fatteningDays" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.fatteningDays }}</ng-template>
                         </p-cellEditor>
                     </td>
 
-                    <td *ngIf="isColVisible('mortalityCount')" class="text-right" pEditableColumn>
+                    <td *ngIf="isColVisible('mortalityCount')" class="text-right" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input"><input pInputText type="number" [(ngModel)]="ship.mortalityCount" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm text-right"></ng-template>
                             <ng-template pTemplate="output">{{ ship.mortalityCount }}</ng-template>
@@ -266,7 +266,7 @@
                         }}%
                     </td>
 
-                    <td style="min-width:4rem; text-align: right;" pFrozenColumn alignFrozen="right">
+                    <td *ngIf="!readOnly" style="min-width:4rem; text-align: right;" pFrozenColumn alignFrozen="right">
                         <button *ngIf="ship.id" pButton icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger w-2rem h-2rem" (click)="deleteShipment($event, ship)"></button>
                         <button *ngIf="!ship.id" pButton icon="pi pi-times" class="p-button-rounded p-button-text p-button-secondary w-2rem h-2rem" (click)="onRowCancel(ship, ri)"></button>
                     </td>

@@ -40,18 +40,39 @@ public class AnalyticsService {
             boolean hasData = stats.getAvgLiverWeight() > 0 || stats.getAvgKosherPercent() > 0;
 
             if (hasData) {
-
                 double liver = stats.getAvgLiverWeight() != null ? stats.getAvgLiverWeight() : 0.0;
                 double kosher = stats.getAvgKosherPercent() != null ? stats.getAvgKosherPercent() : 0.0;
+                double mortality = stats.getAvgMortalityRate() != null ? stats.getAvgMortalityRate() : 0.0;
 
-                double score = (kosher * 5) + (liver * 400);
+                // 1. Alap pontszám kiszámítása
+                double baseScore = (kosher * 5) + (liver * 400);
+
+                // 2. Szorzó kiszámítása az elhullás alapján
+                // Alapértelmezett szorzó 1.0 (ha nincs érvényes elhullási adat)
+                double multiplier = 1.0;
+
+                if (mortality >= 0) {
+                    // Képlet: 1 + (Bázis% - Tényleges%) * 0.025
+                    // Ha 5% (bázis) - 6% (tényleges) = -1 -> -0.025 levonás a szorzóból -> 0.975
+                    // Ha 5% (bázis) - 4% (tényleges) = 1  -> +0.025 hozzáadás a szorzóhoz -> 1.025
+                    multiplier = 1.0 + ((5.0 - mortality) * 0.025);
+
+                    // Biztonsági ellenőrzés: a szorzó ne legyen negatív (bár ehhez 45% feletti elhullás kellene)
+                    if (multiplier < 0) {
+                        multiplier = 0.0;
+                    }
+                }
+
+                // 3. Végső pontszám
+                double finalScore = baseScore * multiplier;
 
                 leaderboard.add(new LeaderboardDTO(
+                        p.getId(), // Partner ID a kattinthatósághoz
                         p.getName(),
                         stats.getAvgLiverWeight(),
                         stats.getAvgKosherPercent(),
                         stats.getAvgMortalityRate(),
-                        Math.round(score * 100.0) / 100.0
+                        Math.round(finalScore * 100.0) / 100.0
                 ));
             }
         }

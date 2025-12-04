@@ -1,6 +1,5 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy, ViewEncapsulation, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { SidebarModule } from 'primeng/sidebar';
 import { ButtonModule } from 'primeng/button';
@@ -13,12 +12,12 @@ import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { Router, NavigationStart } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
 
-import { PartnerDetailComponent } from '../partner-detail/partner-detail.component';
 import { PartnerCreateDialogComponent } from '../partner-create-catalog/partner-create-catalog.component';
 import { ExcelImportDialogComponent } from '../excel-import-dialog/excel-import-dialog.component';
 import { ShipmentService } from '../../services/shipment.service';
 import { PartnerService } from '../../services/partner.service';
 import { ConfirmDialog } from 'primeng/confirmdialog';
+import { PartnerSidebarComponent } from '../../shared/components/partner-sidebar/partner-sidebar.component'; 
 
 @Component({
   selector: 'app-partner-list',
@@ -28,11 +27,11 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
   styleUrls: ['./partner-list.component.scss'],
   imports: [
     CommonModule, TableModule, SidebarModule, ButtonModule, ToastModule,
-    IconFieldModule, InputIconModule, PartnerDetailComponent, PartnerCreateDialogComponent,
-    ExcelImportDialogComponent, TooltipModule, ConfirmPopupModule, ConfirmDialog
+    IconFieldModule, InputIconModule, PartnerCreateDialogComponent,
+    ExcelImportDialogComponent, TooltipModule, ConfirmPopupModule, ConfirmDialog, PartnerSidebarComponent
   ]
 })
-export class PartnerListComponent implements OnInit {
+export class PartnerListComponent implements OnInit, OnDestroy {
   @ViewChild('createDialog') createDialog!: PartnerCreateDialogComponent;
   
   partners: any[] = [];
@@ -41,6 +40,7 @@ export class PartnerListComponent implements OnInit {
   sidebarVisible: boolean = false;
   isDarkMode: boolean = false;
   private navSub?: Subscription;
+  disableSidebarAnim = false;
 
   cols: any[] = [
       { field: 'id', header: 'Azonosító' },
@@ -51,11 +51,11 @@ export class PartnerListComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private http: HttpClient, 
     private messageService: MessageService,
     private shipmentService: ShipmentService,
     private partnerService: PartnerService,         
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -68,23 +68,38 @@ export class PartnerListComponent implements OnInit {
     this.navSub = this.router.events
       .pipe(filter(e => e instanceof NavigationStart))
       .subscribe(() => {
+        this.disableSidebarAnim = true;
         this.sidebarVisible = false;
-        this.selectedPartner = null; 
+        this.selectedPartner = null;
+        this.cdr.detectChanges();
       });
   }
 
-  onSidebarHide() {
-    setTimeout(() => {
-      this.selectedPartner = null;
-    }, 300);
+  ngOnDestroy() {
+    if (this.navSub) {
+      this.navSub.unsubscribe();
+    }
   }
 
+  onSidebarHide() {
+      this.selectedPartner = null;
+      this.disableSidebarAnim = false; 
+  };
+
   loadPartners() {
-    this.http.get<any[]>('http://localhost:8080/api/partners')
-      .subscribe(data => this.partners = data);
+    this.partnerService.getPartners().subscribe({
+      next: (data) => {
+        this.partners = data;
+      },
+      error: (err) => {
+        console.error('Hiba a partnerek betöltésekor:', err);
+        this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült betölteni a partnereket.'});
+      }
+    });
   }
 
   openPartnerStats(partner: any) {
+    this.disableSidebarAnim = false; 
     this.selectedPartner = partner;
     this.sidebarVisible = true;
   }
@@ -103,23 +118,13 @@ export class PartnerListComponent implements OnInit {
     };
 
     this.selectedPartner = virtualPartner;
+    this.disableSidebarAnim = false;
     this.sidebarVisible = true;
   }
 
   onPartnerCreated() {
     this.loadPartners();
     this.messageService.add({severity:'success', summary:'Siker', detail:'Művelet sikeres.'});
-  }
-
-  toggleTheme() {
-    this.isDarkMode = !this.isDarkMode;
-    if (this.isDarkMode) {
-      document.documentElement.classList.add('my-app-dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('my-app-dark');
-      localStorage.setItem('theme', 'light');
-    }
   }
 
   exportSelectedData() {

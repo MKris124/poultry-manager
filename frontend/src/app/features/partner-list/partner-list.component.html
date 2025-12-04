@@ -69,9 +69,14 @@
                 <tr>
                     <th style="width: 3rem"><p-tableHeaderCheckbox></p-tableHeaderCheckbox></th>
                     <th style="width: 10%" pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
-                    <th style="width: 30%" pSortableColumn="name">Név <p-sortIcon field="name"></p-sortIcon></th>
-                    <th style="width: 25%" pSortableColumn="city">Telephely <p-sortIcon field="city"></p-sortIcon></th>
-                    <th style="width: 25%" pSortableColumn="county">Megye <p-sortIcon field="county"></p-sortIcon></th>
+                    <th style="width: 25%" pSortableColumn="name">Név <p-sortIcon field="name"></p-sortIcon></th>
+
+                    <th style="width: 15%" pSortableColumn="totalQuantity" class="text-right">
+                        Össz. Beszállított db <p-sortIcon field="totalQuantity"></p-sortIcon>
+                    </th>
+                
+                    <th style="width: 20%" pSortableColumn="city">Telephely <p-sortIcon field="city"></p-sortIcon></th>
+                    <th style="width: 20%" pSortableColumn="county">Megye <p-sortIcon field="county"></p-sortIcon></th>
                     <th style="width: 5%"></th>
                 </tr>
             </ng-template>
@@ -84,6 +89,12 @@
                     
                     <td><span class="opacity-60">#{{partner.id}}</span></td>
                     <td><div class="font-bold text-lg">{{partner.name}}</div></td>
+                    
+                    <td class="text-right">
+                        <span class="font-bold text-900 surface-100 px-2 py-1 border-round">
+                            {{ partner.totalQuantity | number:'1.0-0' }} db
+                        </span>
+                    </td>
                     <td>
                         <div class="flex align-items-center text-700">
                             <i class="pi pi-map-marker text-teal-500 mr-2 text-lg"></i>
@@ -127,34 +138,13 @@
     </div>
 </div>
 
-<p-sidebar
+<app-partner-sidebar
     [(visible)]="sidebarVisible"
-    (onHide)="onSidebarHide()" 
-    position="right" 
-    [style]="{width: '60%'}" 
-    styleClass="w-full md:w-9 lg:w-8 border-none shadow-8"
-    [modal]="true" 
-    [dismissible]="true" 
-    [showCloseIcon]="true"
-    [blockScroll]="false"
-    transitionOptions="300ms cubic-bezier(0, 0, 0.2, 1)">
+    [partner]="selectedPartner"
+    [disableSidebarAnim]="disableSidebarAnim"
+    (closed)="onSidebarHide()">
+  </app-partner-sidebar>
 
-    <ng-template pTemplate="header">
-        <div class="flex align-items-center gap-3" *ngIf="selectedPartner">
-            <div class="bg-primary-50 text-primary border-round p-2">
-                <i class="pi pi-user text-2xl"></i>
-            </div>
-            <div>
-                <div class="font-bold text-3xl text-900">{{ selectedPartner.name }}</div>
-                <div class="text-500">Részletes adatlap</div>
-            </div>
-        </div>
-    </ng-template>
-
-    <div class="mt-4">
-        <app-partner-detail *ngIf="selectedPartner" [partner]="selectedPartner"></app-partner-detail>
-    </div>
-</p-sidebar>
 
 <app-partner-create-dialog #createDialog (onSave)="onPartnerCreated()"></app-partner-create-dialog>
 

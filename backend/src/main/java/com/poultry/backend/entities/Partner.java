@@ -18,4 +18,7 @@ public class Partner {
     private String name;
     private String city;
     private String county;
+
+    @Transient
+    private Long totalQuantity;
 }
