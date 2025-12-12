@@ -1,7 +1,10 @@
 package com.poultry.backend.services;
 
+import com.poultry.backend.dtos.CreateGroupDTO;
 import com.poultry.backend.dtos.PartnerTotalQuantityDTO;
 import com.poultry.backend.entities.Partner;
+import com.poultry.backend.entities.PartnerGroup;
+import com.poultry.backend.repositories.PartnerGroupRepository;
 import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
 import jakarta.transaction.Transactional;
@@ -19,10 +22,10 @@ import java.util.stream.Collectors;
 public class PartnerService {
     private final PartnerRepository partnerRepository;
     private final ShipmentRepository shipmentRepository;
+    private final PartnerGroupRepository groupRepository;
 
     public List<Partner> getAllPartners() {
         List<Partner> partners = partnerRepository.findAll();
-
         List<PartnerTotalQuantityDTO> totals = shipmentRepository.getTotalQuantitiesByPartner();
 
         Map<Long, Long> quantityMap = totals.stream()
@@ -34,7 +37,6 @@ public class PartnerService {
         for (Partner p : partners) {
             p.setTotalQuantity(quantityMap.getOrDefault(p.getId(), 0L));
         }
-
         return partners;
     }
 
@@ -43,11 +45,9 @@ public class PartnerService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Ez a Partner ID (" + partner.getId() + ") már foglalt!");
         }
-
         if (partner.getName() == null || partner.getName().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A név nem lehet üres!");
         }
-
         return partnerRepository.save(partner);
     }
 
@@ -55,11 +55,9 @@ public class PartnerService {
         Partner partner = partnerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Partner nem található"));
 
-        // Az ID-t nem engedjük módosítani, az a kulcs!
         partner.setName(partnerDetails.getName());
         partner.setCity(partnerDetails.getCity());
         partner.setCounty(partnerDetails.getCounty());
-
         return partnerRepository.save(partner);
     }
 
@@ -71,8 +69,42 @@ public class PartnerService {
     }
 
     @Transactional
+    public PartnerGroup createGroup(CreateGroupDTO dto) {
+        PartnerGroup group = new PartnerGroup();
+        group.setName(dto.getName());
+        group.setColor(dto.getColor());
+
+        group = groupRepository.saveAndFlush(group);
+
+        List<Partner> partners = partnerRepository.findAllById(dto.getPartnerIds());
+        for (Partner p : partners) {
+            if (p.getGroup() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "A partner (" + p.getName() + ") már egy másik csoport tagja!");
+            }
+            p.setGroup(group);
+            partnerRepository.save(p);
+        }
+        return group;
+    }
+
+    @Transactional
+    public void deleteGroup(Long groupId) {
+        PartnerGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Csoport nem található"));
+
+        List<Partner> members = group.getMembers();
+        for(Partner p : members) {
+            p.setGroup(null);
+            partnerRepository.save(p);
+        }
+        groupRepository.delete(group);
+    }
+
+    @Transactional
     public void deleteAllData() {
         shipmentRepository.deleteAll();
         partnerRepository.deleteAll();
+        groupRepository.deleteAll();
     }
 }

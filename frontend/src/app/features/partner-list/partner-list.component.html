@@ -11,6 +11,14 @@
         </div>
 
         <div class="flex align-items-center gap-3 flex-wrap"> 
+
+            <button *ngIf="selectedPartners.length > 1" 
+                    pButton 
+                    label="Csoport Létrehozása" 
+                    icon="pi pi-users" 
+                    class="p-button-info border-round-2xl shadow-2 fadein animation-duration-300 white-space-nowrap"
+                    (click)="openCreateGroupDialog()">
+            </button>
             
             <button *ngIf="selectedPartners.length > 1" 
                     pButton 
@@ -61,54 +69,58 @@
                  [value]="partners" 
                  [(selection)]="selectedPartners" 
                  dataKey="id"
-                 [globalFilterFields]="['name', 'city', 'county', 'id']"
+                 [globalFilterFields]="['name', 'city', 'county', 'group.name']"
                  [rowHover]="true" 
                  responsiveLayout="scroll">
             
             <ng-template pTemplate="header">
                 <tr>
                     <th style="width: 3rem"><p-tableHeaderCheckbox></p-tableHeaderCheckbox></th>
-                    <th style="width: 10%" pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
-                    <th style="width: 25%" pSortableColumn="name">Név <p-sortIcon field="name"></p-sortIcon></th>
-
-                    <th style="width: 15%" pSortableColumn="totalQuantity" class="text-right">
-                        Össz. Beszállított db <p-sortIcon field="totalQuantity"></p-sortIcon>
-                    </th>
-                
-                    <th style="width: 20%" pSortableColumn="city">Telephely <p-sortIcon field="city"></p-sortIcon></th>
-                    <th style="width: 20%" pSortableColumn="county">Megye <p-sortIcon field="county"></p-sortIcon></th>
-                    <th style="width: 5%"></th>
+                    <th pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
+                    <th pSortableColumn="name">Név <p-sortIcon field="name"></p-sortIcon></th>
+                    <th pSortableColumn="totalQuantity" class="text-right">Beszállított db <p-sortIcon field="totalQuantity"></p-sortIcon></th>
+                    <th pSortableColumn="city">Telephely <p-sortIcon field="city"></p-sortIcon></th>
+                    <th pSortableColumn="county">Megye <p-sortIcon field="county"></p-sortIcon></th>
+                    <th></th>
                 </tr>
             </ng-template>
 
             <ng-template pTemplate="body" let-partner>
-                <tr class="cursor-pointer table-row-hover" (click)="openPartnerStats(partner)">
-                    <td (click)="$event.stopPropagation()" class="py-4">
+                <tr class="cursor-pointer table-row-hover" 
+                    (click)="openPartnerStats(partner)"
+                    [ngStyle]="getRowStyle(partner)"> <td (click)="$event.stopPropagation()" class="py-4">
                         <p-tableCheckbox [value]="partner"></p-tableCheckbox>
                     </td>
                     
                     <td><span class="opacity-60">#{{partner.id}}</span></td>
-                    <td><div class="font-bold text-lg">{{partner.name}}</div></td>
+                    <td>
+                        <div class="font-bold text-lg flex align-items-center gap-2">
+                            {{partner.name}}
+                            <span *ngIf="partner.group" 
+                                  class="text-xs px-2 py-1 border-round text-white shadow-1 white-space-nowrap"
+                                  [style.background-color]="partner.group.color">
+                                <i class="pi pi-users text-xs mr-1"></i>{{partner.group.name}}
+                            </span>
+                        </div>
+                    </td>
                     
                     <td class="text-right">
                         <span class="font-bold text-900 surface-100 px-2 py-1 border-round">
                             {{ partner.totalQuantity | number:'1.0-0' }} db
                         </span>
                     </td>
-                    <td>
-                        <div class="flex align-items-center text-700">
-                            <i class="pi pi-map-marker text-teal-500 mr-2 text-lg"></i>
-                            {{partner.city}}
-                        </div>
-                    </td>
-                    <td>
-                        <span class="county-badge">
-                            {{partner.county}}
-                        </span>
-                    </td>
+                    <td>{{partner.city}}</td>
+                    <td><span class="county-badge">{{partner.county}}</span></td>
                     
                     <td class="text-right">
                         <div class="flex justify-content-end gap-2">
+                            <button *ngIf="partner.group"
+                                    pButton icon="pi pi-folder-open" 
+                                    class="p-button-rounded p-button-text p-button-secondary w-2rem h-2rem" 
+                                    pTooltip="Csoport Felbontása" tooltipPosition="top"
+                                    (click)="deleteGroupOfPartner(partner); $event.stopPropagation()">
+                            </button>
+
                             <button pButton icon="pi pi-pencil" 
                                     class="p-button-rounded p-button-text p-button-warning w-2rem h-2rem" 
                                     pTooltip="Szerkesztés" tooltipPosition="top"
@@ -129,9 +141,7 @@
 
             <ng-template pTemplate="emptymessage">
                 <tr>
-                    <td colspan="6" class="text-center p-4 text-500">
-                        Nincs találat a keresési feltételeknek megfelelően.
-                    </td>
+                    <td colspan="7" class="text-center p-4 text-500">Nincs találat.</td>
                 </tr>
             </ng-template>
         </p-table>
@@ -147,6 +157,7 @@
 
 
 <app-partner-create-dialog #createDialog (onSave)="onPartnerCreated()"></app-partner-create-dialog>
+<app-partner-group-create-dialog #groupDialog (onSave)="onDataChanged()"></app-partner-group-create-dialog>
 
 <div style="position: fixed; bottom: 30px; right: 30px; z-index: 1000;">
     <button pButton 

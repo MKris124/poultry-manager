@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, OnDestroy, ViewEncapsulation, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { SidebarModule } from 'primeng/sidebar';
@@ -18,6 +18,7 @@ import { ShipmentService } from '../../services/shipment.service';
 import { PartnerService } from '../../services/partner.service';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { PartnerSidebarComponent } from '../../shared/components/partner-sidebar/partner-sidebar.component'; 
+import { PartnerGroupCreateDialogComponent } from '../partner-create-group/partner-group-dialog.component';
 
 @Component({
   selector: 'app-partner-list',
@@ -28,11 +29,13 @@ import { PartnerSidebarComponent } from '../../shared/components/partner-sidebar
   imports: [
     CommonModule, TableModule, SidebarModule, ButtonModule, ToastModule,
     IconFieldModule, InputIconModule, PartnerCreateDialogComponent,
-    ExcelImportDialogComponent, TooltipModule, ConfirmPopupModule, ConfirmDialog, PartnerSidebarComponent
+    ExcelImportDialogComponent, TooltipModule, ConfirmPopupModule, ConfirmDialog, 
+    PartnerSidebarComponent, PartnerGroupCreateDialogComponent
   ]
 })
 export class PartnerListComponent implements OnInit, OnDestroy {
   @ViewChild('createDialog') createDialog!: PartnerCreateDialogComponent;
+  @ViewChild('groupDialog') groupDialog!: PartnerGroupCreateDialogComponent;
   
   partners: any[] = [];
   selectedPartners: any[] = []; 
@@ -41,13 +44,6 @@ export class PartnerListComponent implements OnInit, OnDestroy {
   isDarkMode: boolean = false;
   private navSub?: Subscription;
   disableSidebarAnim = false;
-
-  cols: any[] = [
-      { field: 'id', header: 'Azonosító' },
-      { field: 'name', header: 'Név' },
-      { field: 'city', header: 'Telephely' },
-      { field: 'county', header: 'Megye' }
-  ];
 
   constructor(
     private router: Router,
@@ -95,6 +91,39 @@ export class PartnerListComponent implements OnInit, OnDestroy {
         console.error('Hiba a partnerek betöltésekor:', err);
         this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült betölteni a partnereket.'});
       }
+    });
+  }
+
+  onDataChanged() {
+    this.loadPartners();
+    this.selectedPartners = [];
+  }
+
+  openCreateGroupDialog() {
+    if (this.selectedPartners.length > 1) {
+        this.groupDialog.show(this.selectedPartners);
+    }
+  }
+
+  deleteGroupOfPartner(partner: any) {
+    if (!partner.group) return;
+    
+    this.confirmationService.confirm({
+        message: `Biztosan felbontod a(z) "${partner.group.name}" csoportot? A partnerek megmaradnak, de visszakerülnek egyéni státuszba.`,
+        header: 'Csoport Felbontása',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Felbontás',
+        rejectLabel: 'Mégse',
+        acceptButtonStyleClass: 'p-button-warning',
+        accept: () => {
+             this.partnerService.deleteGroup(partner.group.id).subscribe({
+                next: () => {
+                    this.messageService.add({severity:'success', summary:'Siker', detail:'Csoport felbontva'});
+                    this.loadPartners();
+                },
+                error: () => this.messageService.add({severity:'error', summary:'Hiba', detail:'Sikertelen művelet'})
+             });
+        }
     });
   }
 
@@ -198,4 +227,18 @@ export class PartnerListComponent implements OnInit, OnDestroy {
           }
       });
     }
+
+    getRowStyle(partner: any) {
+    if (partner.group) {
+        const hex = partner.group.color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        return {
+            'background': `linear-gradient(90deg, rgba(${r},${g},${b},0.15) 0%, rgba(${r},${g},${b},0.02) 100%)`,
+            'border-left': `4px solid ${partner.group.color}`
+        };
+    }
+    return {};
+  }
 }

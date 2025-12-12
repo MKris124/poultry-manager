@@ -14,132 +14,122 @@
 
         <div class="flex align-items-center gap-3 w-full md:w-auto">
             <span class="relative block flex-1" style="min-width: 250px; max-width: 50rem;">
-                <i class="pi pi-search text-500 absolute" 
-                   style="top: 50%; transform: translateY(-50%); left: 1rem; z-index: 1;">
-                </i>
-
-                
-            
-                <input type="text" 
-                       pInputText 
-                       placeholder="Keresés..." 
+                <i class="pi pi-search text-500 absolute" style="top: 50%; transform: translateY(-50%); left: 1rem; z-index: 1;"></i>
+                <input type="text" pInputText placeholder="Keresés..." 
                        (input)="dt.filterGlobal($any($event.target).value, 'contains')" 
-                       class="w-full border-round-2xl surface-card border-none shadow-1 py-2 pl-6" 
-                       style="padding-left: 3rem !important;"/> 
+                       class="w-full border-round-2xl surface-card border-none shadow-1 py-2 pl-6" /> 
             </span>
             <button pButton icon="pi pi-arrow-left" routerLink="/partners" class="p-button-outlined border-round-2xl"></button>
         </div>
     </div>
 
     <div class="flex justify-content-center mb-3">
-        <p-selectButton [options]="viewOptions" 
-                        [(ngModel)]="viewMode" 
-                        (onChange)="updateSorting()"
-                        optionLabel="label" 
-                        optionValue="value"
-                        styleClass="text-lg">
-        </p-selectButton>
+        <p-selectButton [options]="viewOptions" [(ngModel)]="viewMode" (onChange)="updateSorting()"
+                        optionLabel="label" optionValue="value" styleClass="text-lg"></p-selectButton>
     </div>
-
     <div *ngIf="viewMode === 'category'" class="flex justify-content-center mb-4 fade-in">
-        <p-selectButton [options]="categoryOptions" 
-                        [(ngModel)]="currentCategory" 
-                        (onChange)="updateSorting()"
-                        optionLabel="label" 
-                        optionValue="value">
+        <p-selectButton [options]="categoryOptions" [(ngModel)]="currentCategory" (onChange)="updateSorting()"
+                        optionLabel="label" optionValue="value">
             <ng-template let-item pTemplate>
-                <i [class]="item.icon + ' mr-2'"></i>
-                {{item.label}}
+                <i [class]="item.icon + ' mr-2'"></i> {{item.label}}
             </ng-template>
         </p-selectButton>
     </div>
 
     <div class="modern-card overflow-hidden fade-in">
-        <p-table #dt [value]="rankedPartners" 
-                 styleClass="p-datatable-lg" 
-                 [rowHover]="true"
-                 [globalFilterFields]="['partnerName']"
-                 selectionMode="single"
-                 (onRowSelect)="openPartnerStats($event.data)">
-            
-            <ng-template pTemplate="header">
-                <tr>
-                    <th style="width: 4rem" class="text-center">#</th>
-                    <th style="width: 25%">Név</th>
-                    <th class="text-right text-500 font-normal">Darabszám</th>
-                    
-                    <th class="text-right font-normal" 
-                        [ngClass]="isActiveColumn('liver') ? 'text-900 font-bold' : 'text-500'">Máj (kg)</th>
-                    
-                    <th class="text-right font-normal" 
-                        [ngClass]="isActiveColumn('kosher') ? 'text-900 font-bold' : 'text-500'">Kóser %</th>
-                    
-                    <th class="text-right font-normal" 
-                        [ngClass]="isActiveColumn('mortality') ? 'text-900 font-bold' : 'text-500'">Elhullás %</th>
+    <p-table #dt [value]="rankedPartners" 
+    styleClass="p-datatable-lg" 
+    [rowHover]="true"
+    [globalFilterFields]="['partnerName']"
+    dataKey="partnerId"
+    [expandedRowKeys]="expandedRows" >
+         <ng-template pTemplate="header">
+            <tr>
+                <th style="width: 3rem"></th>
+                <th style="width: 4rem" class="text-center">#</th>
+                <th style="width: 30%">Név</th>
+                <th class="text-right font-normal" [ngClass]="isActiveColumn('liver') ? 'text-900 font-bold' : 'text-500'">Máj (kg)</th>
+                <th class="text-right font-normal" [ngClass]="isActiveColumn('kosher') ? 'text-900 font-bold' : 'text-500'">Kóser %</th>
+                <th class="text-right font-normal" [ngClass]="isActiveColumn('mortality') ? 'text-900 font-bold' : 'text-500'">Elhullás %</th>
+                <th class="text-right text-xl" style="width: 150px" [ngClass]="isActiveColumn('score') ? 'text-primary' : 'text-500 opacity-60'">PONTSZÁM</th>
+            </tr>
+        </ng-template>
 
-                    <th class="text-right text-xl" style="width: 150px" 
-                        [ngClass]="isActiveColumn('score') ? 'text-primary' : 'text-500 opacity-60'">
-                        PONTSZÁM
-                    </th>
-                </tr>
-            </ng-template>
+        <ng-template pTemplate="body" let-partner let-expanded="expanded">
+            <tr [ngClass]="partner.groupColor" 
+                style="cursor: pointer;"
+                (click)="onRowClick(partner)"> 
+                
+                <td>
+                    <button
+                      type="button"
+                      pButton
+                      pRipple
+                      class="p-button-text p-button-rounded p-button-plain"
+                      [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+                      (click)="toggleGroup(partner, $event)"
+                      *ngIf="partner.group">
+                    </button>
+                </td>
+                
+                <td class="text-center text-2xl">{{ getMedal(partner.originalRank) }}</td>
+                
+                <td>
+                    <div class="font-bold text-xl flex align-items-center gap-2">
+                        {{ partner.partnerName }}
+                        <span *ngIf="partner.group" class="text-sm px-2 border-round shadow-1" [style.background]="partner.groupColor">Csoport</span>
+                    </div>
+                </td>
+                
+                <td class="text-right text-lg" [ngClass]="{'font-bold text-blue-600 surface-50': isActiveColumn('liver')}">{{ partner.avgLiverWeight | number:'1.2-2' }}</td>
+                <td class="text-right text-lg" [ngClass]="{'font-bold text-green-600 surface-50': isActiveColumn('kosher')}">{{ partner.avgKosherPercent | number:'1.1-2' }}%</td>
+                <td class="text-right text-lg" [ngClass]="{'font-bold text-red-600 surface-50': isActiveColumn('mortality'), 'text-500': !isActiveColumn('mortality')}">{{ partner.avgMortalityRate | number:'1.2-2' }}%</td>
+                
+                <td class="text-right">
+                    <div class="text-3xl" [ngClass]="isActiveColumn('score') ? 'font-black text-primary' : 'font-bold text-500 opacity-40'">{{ partner.totalScore | number:'1.0-2' }}</div>
+                </td>
+            </tr>
+        </ng-template>
 
-            <ng-template pTemplate="body" let-partner>
-                <tr [pSelectableRow]="partner">
-                    
-                    <td class="text-center text-2xl">
-                        {{ getMedal(partner.originalRank) }}
-                    </td>
-                    
-                    <td>
-                        <div class="font-bold text-xl">{{ partner.partnerName }}</div>
-                    </td>
-                    
-                    <td class="text-right text-lg text-900 font-medium">
-                         {{ partner.totalQuantity | number:'1.0-0' }}
-                    </td>
-
-                    <td class="text-right text-lg" 
-                        [ngClass]="{'font-bold text-blue-600 surface-50': isActiveColumn('liver')}">
-                        {{ partner.avgLiverWeight | number:'1.2-2' }}
-                    </td>
-
-                    <td class="text-right text-lg" 
-                        [ngClass]="{'font-bold text-green-600 surface-50': isActiveColumn('kosher')}">
-                        {{ partner.avgKosherPercent | number:'1.1-1' }}%
-                    </td>
-
-                    <td class="text-right text-lg" 
-                        [ngClass]="{'font-bold text-red-600 surface-50': isActiveColumn('mortality'), 'text-500': !isActiveColumn('mortality')}">
-                        {{ partner.avgMortalityRate | number:'1.2-2' }}%
-                    </td>
-
-                    <td class="text-right">
-                        <div class="text-3xl" 
-                             [ngClass]="isActiveColumn('score') ? 'font-black text-primary' : 'font-bold text-500 opacity-40'">
-                            {{ partner.totalScore | number:'1.0-2' }}
-                        </div>
-                    </td>
-
-                </tr>
-            </ng-template>
-
-            <ng-template pTemplate="emptymessage">
-                <tr>
-                    <td colspan="7" class="text-center p-5 text-500">
-                        Nincs találat a keresési feltételeknek megfelelően.
-                    </td>
-                </tr>
-            </ng-template>
-
-        </p-table>
-    </div>
-    
+        <ng-template pTemplate="expandedrow" let-row>
+            <tr>
+                <td colspan="7" class="p-0">
+                    <div class="p-3 surface-50" style="border-left: 4px solid var(--primary-color)">
+                        <h4 class="m-0 mb-2 text-600">Csoport tagjai:</h4>
+                        
+                        <p-table [value]="row.members" styleClass="p-datatable-sm">
+                            <ng-template pTemplate="header">
+                                <tr>
+                                    <th>Név</th>
+                                    <th class="text-right">Máj (kg)</th>
+                                    <th class="text-right">Kóser %</th>
+                                    <th class="text-right">Elhullás %</th>
+                                    <th class="text-right">Egyéni Pont</th>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="body" let-member>
+                                <tr class="cursor-pointer hover:surface-100" (click)="openPartnerStats(member); $event.stopPropagation()">
+                                    <td class="font-bold text-primary">{{member.partnerName}}</td>
+                                    <td class="text-right">{{member.avgLiverWeight | number:'1.2-2'}}</td>
+                                    <td class="text-right">{{member.avgKosherPercent | number:'1.1-2'}}%</td>
+                                    <td class="text-right">{{member.avgMortalityRate | number:'1.2-2'}}%</td>
+                                    <td class="text-right font-bold text-900">{{member.totalScore | number:'1.0-2'}}</td>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="emptymessage">
+                                <tr><td colspan="5" class="text-center p-3">Nincs megjeleníthető adat.</td></tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+</div>
     <div *ngIf="viewMode === 'score'" class="text-center mt-4 text-500 text-sm fade-in">
         <i class="pi pi-info-circle mr-1"></i>
         Pontszámítás: ((Kóser % × 5) + (Máj dkg × 4)) × (1 + (5 - Elhullás %) × 0,025)
     </div>
-
 </div>
 
 <app-partner-sidebar 

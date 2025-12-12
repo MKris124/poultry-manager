@@ -29,4 +29,12 @@ export class PartnerService {
   getPartners(): Observable<any[]> {
     return this.http.get<any[]>(this.apiUrl);
   }
+
+  createGroup(dto: { name: string, color: string, partnerIds: number[] }) {
+    return this.http.post<any>(`${this.apiUrl}/groups`, dto);
+  }
+
+  deleteGroup(id: number) {
+    return this.http.delete(`${this.apiUrl}/groups/${id}`);
+  }
 }

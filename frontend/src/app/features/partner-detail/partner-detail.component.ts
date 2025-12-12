@@ -137,10 +137,10 @@ export class PartnerDetailComponent implements OnChanges {
       let sumMortalityRate = 0, countMortalityRate = 0;
 
       this.shipments.forEach(s => {
-          if (s.liverWeight != null) { sumLiver += s.liverWeight; countLiver++; }
-          if (s.kosherPercent != null) { sumKosher += s.kosherPercent; countKosher++; }
-          if (s.fatteningRate != null) { sumFattening += s.fatteningRate; countFattening++; }
-          if (s.mortalityRate != null) { sumMortalityRate += s.mortalityRate; countMortalityRate++; }
+          if (s.liverWeight != null && s.liverWeight > 0) { sumLiver += s.liverWeight; countLiver++; }
+          if (s.kosherPercent != null && s.kosherPercent > 0) { sumKosher += s.kosherPercent; countKosher++; }
+          if (s.fatteningRate != null && s.fatteningRate > 0) { sumFattening += s.fatteningRate; countFattening++; }
+          if (s.mortalityRate != null && s.mortalityRate > 0) { sumMortalityRate += s.mortalityRate; countMortalityRate++; }
       });
 
       this.selectedStats = {

@@ -26,12 +26,12 @@ import { PartnerSidebarComponent } from '../../shared/components/partner-sidebar
   ],
   templateUrl: './leaderboard.component.html',
   styles: [`
-    :host ::ng-deep .p-row-selectable { cursor: pointer; }
     .fade-in { animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   `]
 })
 export class LeaderboardComponent implements OnInit {
+[x: string]: any;
   
   rankedPartners: any[] = [];
   originalData: any[] = [];
@@ -39,6 +39,9 @@ export class LeaderboardComponent implements OnInit {
   sidebarVisible: boolean = false;
   selectedPartner: any = null;
   disableSidebarAnim: boolean = false;
+  
+  // A kinyitott sorok tárolója (Key: ID, Value: true)
+  expandedRows: { [key: string]: boolean } = {};
 
   viewMode: 'score' | 'category' = 'score';
   
@@ -101,6 +104,22 @@ export class LeaderboardComponent implements OnInit {
       if (rank === 3) return '🥉';
       return rank + '.';
   }
+
+  toggleGroup(partner: any, e?: Event) {
+  e?.stopPropagation();
+  const id = String(partner.partnerId);
+  const next = { ...this.expandedRows };
+
+  if (next[id]) delete next[id];
+  else next[id] = true;
+
+  this.expandedRows = next;
+}
+
+onRowClick(partner: any) {
+  if (partner.group) this.toggleGroup(partner);
+  else this.openPartnerStats(partner);
+}
 
   openPartnerStats(leaderboardItem: any) {
     if (leaderboardItem.partnerId) {

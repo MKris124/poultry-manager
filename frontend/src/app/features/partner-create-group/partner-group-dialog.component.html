@@ -1,0 +1,74 @@
+<p-dialog
+  header="Új Csoport Létrehozása"
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{width: '450px', height: '600px'}"
+  [draggable]="false"
+  [resizable]="false"
+  appendTo="body">
+
+  <div class="flex flex-column gap-4 pt-2">
+
+    <div class="surface-100 p-3 border-round border-left-3 border-primary flex align-items-center gap-2">
+      <i class="pi pi-info-circle text-primary text-xl"></i>
+      <span class="text-sm line-height-3">
+        A kiválasztott <b>{{ selectedPartners.length }} partner</b> egy új, közös elszámolási egységbe kerül.
+      </span>
+    </div>
+
+    <div class="flex flex-column gap-2">
+      <label for="gName" class="font-bold text-900">Csoport Neve</label>
+      <input
+        pInputText
+        id="gName"
+        [(ngModel)]="groupName"
+        placeholder="Pl. Északi Szövetkezet"
+        autofocus
+        class="w-full"
+      />
+    </div>
+
+    <div class="flex flex-column gap-2">
+  <label class="font-bold text-900">Megkülönböztető Szín</label>
+
+  <div class="flex align-items-start gap-3">
+    <p-colorPicker
+      [(ngModel)]="groupColor"
+      [inline]="true"
+    ></p-colorPicker>
+
+    <div class="flex-1">
+      <div
+        class="p-2 border-round text-white font-bold text-center text-sm shadow-1 transition-all transition-duration-300"
+        [style.background-color]="cssColor"
+      >
+        {{ groupName || 'Minta Megjelenés' }}
+      </div>
+
+      <small class="text-500 block mt-2">
+        Kattints a színre a pontos választáshoz.
+      </small>
+    </div>
+  </div>
+</div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Mégse"
+      icon="pi pi-times"
+      (click)="close()"
+      styleClass="p-button-text"
+      [disabled]="isLoading"
+    ></p-button>
+
+    <p-button
+      label="Létrehozás"
+      icon="pi pi-check"
+      (click)="save()"
+      [loading]="isLoading"
+      [disabled]="!groupName">
+    </p-button>
+  </ng-template>
+</p-dialog>

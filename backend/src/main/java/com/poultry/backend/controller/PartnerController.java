@@ -1,9 +1,12 @@
 package com.poultry.backend.controller;
 
+import com.poultry.backend.dtos.CreateGroupDTO;
 import com.poultry.backend.entities.Partner;
+import com.poultry.backend.entities.PartnerGroup;
 import com.poultry.backend.services.PartnerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -37,5 +40,16 @@ public class PartnerController {
     @DeleteMapping("/delete-all")
     public void deleteAll() {
         partnerService.deleteAllData();
+    }
+
+    @PostMapping("/groups")
+    public ResponseEntity<PartnerGroup> createGroup(@RequestBody CreateGroupDTO dto) {
+        return ResponseEntity.ok(partnerService.createGroup(dto));
+    }
+
+    @DeleteMapping("/groups/{id}")
+    public ResponseEntity<Void> deleteGroup(@PathVariable Long id) {
+        partnerService.deleteGroup(id);
+        return ResponseEntity.noContent().build();
     }
 }
