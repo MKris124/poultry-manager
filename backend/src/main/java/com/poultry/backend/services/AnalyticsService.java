@@ -126,7 +126,7 @@ public class AnalyticsService {
         double sumMortalityRate = 0; int countMortalityRate = 0;
 
         for (Shipment s : list) {
-            if (s.getLiverWeight() != null && s.getLiverWeight() > 0) {
+            if (s.getLiverWeight() != null ) {
                 sumLiver += s.getLiverWeight(); countLiver++;
             }
             if (s.getKosherPercent() != null) {
