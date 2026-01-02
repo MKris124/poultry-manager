@@ -2,7 +2,9 @@ package com.poultry.backend.services;
 
 import com.poultry.backend.dtos.ImportResult;
 import com.poultry.backend.entities.Partner;
+import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.entities.Shipment;
+import com.poultry.backend.repositories.PartnerLocationRepository;
 import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
 import com.poultry.backend.utils.ExcelHelper;
@@ -14,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -27,6 +27,8 @@ public class ShipmentImportService {
 
     private final PartnerRepository partnerRepository;
     private final ShipmentRepository shipmentRepository;
+    private final PartnerLocationRepository partnerLocationRepository; // ÚJ dependency
+
     private static final Pattern NAME_CODE_PATTERN = Pattern.compile("^(.*)\\s+(\\d+)/(\\d+)/(\\d+)$");
 
     @Transactional
@@ -72,18 +74,21 @@ public class ShipmentImportService {
         String seqNum = matcher.group(3);
         String year = matcher.group(4);
 
-        Partner partner = getOrCreatePartner(row, partnerIdStr, partnerName);
-        String cleanDeliveryCode = seqNum + "/" + year;
+        String city = ExcelHelper.getCellString(row, 1);
+        String county = ExcelHelper.getCellString(row, 2);
 
-        Shipment shipment = shipmentRepository.findByDeliveryCodeAndPartnerId(cleanDeliveryCode, partner.getId())
+        Partner partner = getOrCreatePartner(partnerIdStr, partnerName);
+        PartnerLocation location = getOrCreateLocation(partner, city, county);
+        String cleanDeliveryCode = seqNum + "/" + year;
+        Shipment shipment = shipmentRepository.findByDeliveryCodeAndLocation(cleanDeliveryCode, location)
                 .orElse(new Shipment());
 
-        fillShipmentData(shipment, partner, cleanDeliveryCode, row);
+        fillShipmentData(shipment, location, cleanDeliveryCode, row);
 
         return shipment;
     }
 
-    private Partner getOrCreatePartner(Row row, String partnerIdStr, String partnerName) {
+    private Partner getOrCreatePartner(String partnerIdStr, String partnerName) {
         long pId;
         try {
             pId = Long.parseLong(partnerIdStr);
@@ -92,26 +97,43 @@ public class ShipmentImportService {
         }
 
         return partnerRepository.findById(pId)
-                .map(p -> {
-                    p.setCity(ExcelHelper.getCellString(row, 1));
-                    p.setCounty(ExcelHelper.getCellString(row, 2));
-                    return partnerRepository.save(p);
-                })
                 .orElseGet(() -> {
                     Partner newP = new Partner();
                     newP.setId(pId);
                     newP.setName(partnerName);
-                    newP.setCity(ExcelHelper.getCellString(row, 1));
-                    newP.setCounty(ExcelHelper.getCellString(row, 2));
                     return partnerRepository.save(newP);
                 });
     }
 
-    private void fillShipmentData(Shipment shipment, Partner partner, String deliveryCode, Row row) {
+    private PartnerLocation getOrCreateLocation(Partner partner, String city, String county) {
+        if (city == null || city.trim().isEmpty()) {
+            city = "Ismeretlen";
+        }
+
+        String finalCity = city;
+
+        return partnerLocationRepository.findByPartnerAndCity(partner, finalCity)
+                .map(loc -> {
+                    if (county != null && !county.equals(loc.getCounty())) {
+                        loc.setCounty(county);
+                        return partnerLocationRepository.save(loc);
+                    }
+                    return loc;
+                })
+                .orElseGet(() -> {
+                    PartnerLocation newLoc = new PartnerLocation();
+                    newLoc.setPartner(partner);
+                    newLoc.setCity(finalCity);
+                    newLoc.setCounty(county);
+                    return partnerLocationRepository.save(newLoc);
+                });
+    }
+
+    private void fillShipmentData(Shipment shipment, PartnerLocation location, String deliveryCode, Row row) {
         String currentField = "Ismeretlen mező";
 
         try {
-            shipment.setPartner(partner);
+            shipment.setLocation(location);
             shipment.setDeliveryCode(deliveryCode);
 
             currentField = "Szállítás dátuma (D oszlop)";
@@ -125,23 +147,18 @@ public class ShipmentImportService {
             double totalWeight = ExcelHelper.getCellNum(row, 5);
             shipment.setTotalWeight(totalWeight);
 
-            // 6. G oszlop: Átlag kg (Számított) - Kihagyjuk
-
             currentField = "Vágási hét (H oszlop)";
             shipment.setProcessingWeek((int) ExcelHelper.getCellNum(row, 7));
 
             currentField = "Vágás dátuma (I oszlop)";
             shipment.setProcessingDate(ExcelHelper.getCellDate(row, 8));
 
-            // --- NETTÓ ADATOK ---
 
             currentField = "Beszállított db (J oszlop)";
             int netQty = (int) ExcelHelper.getCellNum(row, 9);
 
             currentField = "Beszállított kg (K oszlop)";
             double netWeight = ExcelHelper.getCellNum(row, 10);
-
-            // 11. L oszlop: Leadott átlag - Kihagyjuk
 
             currentField = "Útihulla db (M oszlop)";
             int transMort = (int) ExcelHelper.getCellNum(row, 12);
@@ -151,7 +168,6 @@ public class ShipmentImportService {
             double transMortKg = ExcelHelper.getCellNum(row, 13);
             shipment.setTransportMortalityKg(transMortKg);
 
-            // Számítás, ha hiányzik a nettó az Excelből
             if (netQty == 0 && quantity > 0) {
                 netQty = quantity - transMort;
             }

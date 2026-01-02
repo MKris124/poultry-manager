@@ -23,16 +23,14 @@ public class AnalyticsService {
 
     public List<LeaderboardDTO> getLeaderboard() {
         List<Shipment> allShipments = shipmentRepository.findAll();
-
-        // JAVÍTÁS: ID alapján csoportosítunk, így elkerüljük az equals/hashCode hibákat
         Map<Long, List<Shipment>> shipmentsByPartnerId = allShipments.stream()
-                .collect(Collectors.groupingBy(s -> s.getPartner().getId()));
+                .filter(s -> s.getLocation() != null && s.getLocation().getPartner() != null)
+                .collect(Collectors.groupingBy(s -> s.getLocation().getPartner().getId()));
 
         List<LeaderboardDTO> finalLeaderboard = new ArrayList<>();
         List<Partner> allPartners = partnerRepository.findAll();
         Set<Long> processedPartnerIds = new HashSet<>();
 
-        // 1. CSOPORTOK FELDOLGOZÁSA
         List<PartnerGroup> groups = groupRepository.findAll();
         for (PartnerGroup group : groups) {
             List<Shipment> groupShipments = new ArrayList<>();
@@ -40,23 +38,18 @@ public class AnalyticsService {
 
             for (Partner member : group.getMembers()) {
                 processedPartnerIds.add(member.getId());
-                // ID alapján kérjük le a szállítmányokat
+                // Itt már jó a map, mert location.partner.id alapján készült
                 List<Shipment> memberShipList = shipmentsByPartnerId.getOrDefault(member.getId(), Collections.emptyList());
                 groupShipments.addAll(memberShipList);
 
-                // Tag egyéni statisztikája - MINDIG létrehozzuk, akkor is ha 0
                 LeaderboardDTO memberDTO = createDTO(member.getId(), member.getName(), memberShipList, false, null, null);
-
-                // Ha null lenne (mert nincs adat), akkor egy üres DTO-t adunk vissza, hogy megjelenjen a listában
                 if (memberDTO == null) {
                     memberDTO = new LeaderboardDTO(member.getId(), member.getName(), 0.0, 0.0, 0.0, 0.0, false, null, null);
                 }
                 memberDTOs.add(memberDTO);
             }
 
-            // Csoport összesített statisztikája
             LeaderboardDTO groupDTO = createDTO(group.getId()* -1, group.getName(), groupShipments, true, group.getColor(), memberDTOs);
-
             if (groupDTO != null) {
                 finalLeaderboard.add(groupDTO);
             }
@@ -68,7 +61,6 @@ public class AnalyticsService {
                 List<Shipment> partnerShipments = shipmentsByPartnerId.getOrDefault(partner.getId(), Collections.emptyList());
                 LeaderboardDTO dto = createDTO(partner.getId(), partner.getName(), partnerShipments, false, null, null);
 
-                // Egyéni partnert csak akkor listázunk, ha van releváns adata
                 if (dto != null) {
                     finalLeaderboard.add(dto);
                 }
@@ -81,8 +73,6 @@ public class AnalyticsService {
     private LeaderboardDTO createDTO(Long id, String name, List<Shipment> shipments, boolean isGroup, String color, List<LeaderboardDTO> members) {
         PartnerStatsDTO stats = calculateStats(shipments);
 
-        // Megjelenítési feltétel: van-e érdemi adat?
-        // Csoportnál akkor is megjelenítjük, ha van tagja (még ha 0 is a pontja)
         boolean hasData = stats.getAvgLiverWeight() > 0 || stats.getAvgKosherPercent() > 0;
         boolean hasMembers = members != null && !members.isEmpty();
 
@@ -94,7 +84,6 @@ public class AnalyticsService {
         double kosher = stats.getAvgKosherPercent();
         double mortality = stats.getAvgMortalityRate();
 
-        // Pontszámítás
         double baseScore = (kosher * 5) + (liver * 400);
         double multiplier = 1.0;
         if (mortality >= 0) {
@@ -103,14 +92,13 @@ public class AnalyticsService {
         }
         double finalScore = baseScore * multiplier;
 
-        // DTO összeállítása
         return new LeaderboardDTO(
                 id,
                 name,
                 liver,
                 kosher,
                 mortality,
-                Math.round(finalScore * 100.0) / 100.0, // totalScore
+                Math.round(finalScore * 100.0) / 100.0,
                 isGroup,
                 color,
                 members
@@ -125,18 +113,18 @@ public class AnalyticsService {
         double sumFattening = 0; int countFattening = 0;
         double sumMortalityRate = 0; int countMortalityRate = 0;
 
-        for (Shipment s : list) {
-            if (s.getLiverWeight() != null ) {
-                sumLiver += s.getLiverWeight(); countLiver++;
+        for (Shipment shipment : list) {
+            if (shipment.getLiverWeight() != null ) {
+                sumLiver += shipment.getLiverWeight(); countLiver++;
             }
-            if (s.getKosherPercent() != null) {
-                sumKosher += s.getKosherPercent(); countKosher++;
+            if (shipment.getKosherPercent() != null) {
+                sumKosher += shipment.getKosherPercent(); countKosher++;
             }
-            if (s.getFatteningRate() != null) {
-                sumFattening += s.getFatteningRate(); countFattening++;
+            if (shipment.getFatteningRate() != null) {
+                sumFattening += shipment.getFatteningRate(); countFattening++;
             }
-            if (s.getMortalityRate() != null) {
-                sumMortalityRate += s.getMortalityRate(); countMortalityRate++;
+            if (shipment.getMortalityRate() != null) {
+                sumMortalityRate += shipment.getMortalityRate(); countMortalityRate++;
             }
         }
 
@@ -149,15 +137,22 @@ public class AnalyticsService {
     }
 
     public PartnerStatsDTO getPartnerStats(Long partnerId) {
-        List<Shipment> history = shipmentRepository.findByPartnerIdOrderByProcessingDateDesc(partnerId);
+        List<Shipment> history = shipmentRepository.findByLocationPartnerIdOrderByProcessingDateDesc(partnerId);
+        if (history.isEmpty()) return new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
+        return calculateStats(history);
+    }
+
+    public PartnerStatsDTO getLocationStats(Long locationId) {
+        List<Shipment> history = shipmentRepository.findByLocationIdOrderByProcessingDateDesc(locationId);
         if (history.isEmpty()) return new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
         return calculateStats(history);
     }
 
     public Map<Long, PartnerStatsDTO> getAllPartnerStats() {
         List<Shipment> all = shipmentRepository.findAll();
-        // Itt is ID alapján csoportosítunk
-        Map<Long, List<Shipment>> byId = all.stream().collect(Collectors.groupingBy(s -> s.getPartner().getId()));
+        Map<Long, List<Shipment>> byId = all.stream()
+                .filter(s -> s.getLocation() != null && s.getLocation().getPartner() != null)
+                .collect(Collectors.groupingBy(s -> s.getLocation().getPartner().getId()));
 
         return byId.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> calculateStats(e.getValue())));

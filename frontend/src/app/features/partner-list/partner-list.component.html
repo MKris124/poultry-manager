@@ -11,7 +11,6 @@
         </div>
 
         <div class="flex align-items-center gap-3 flex-wrap"> 
-
             <button *ngIf="selectedPartners.length > 1" 
                     pButton 
                     label="Csoport Létrehozása" 
@@ -46,12 +45,9 @@
                 <i class="pi pi-search text-500 absolute" 
                    style="top: 50%; transform: translateY(-50%); left: 1rem; z-index: 1;">
                 </i>
-
-                
-            
                 <input type="text" 
                        pInputText 
-                       placeholder="Keresés..." 
+                       placeholder="Keresés (Név, Város, Megye)..." 
                        (input)="dt1.filterGlobal($any($event.target).value, 'contains')" 
                        class="w-full border-round-2xl surface-card border-none shadow-1 py-2 pl-6" 
                        style="padding-left: 3rem !important;"/> 
@@ -61,7 +57,7 @@
                       (click)="createDialog.show()" 
                       styleClass="border-round-2xl px-4 bg-primary border-none shadow-2 white-space-nowrap">
             </p-button>
-            </div>
+        </div>
     </div>
 
     <div class="modern-card">
@@ -69,30 +65,34 @@
                  [value]="partners" 
                  [(selection)]="selectedPartners" 
                  dataKey="id"
-                 [globalFilterFields]="['name', 'city', 'county', 'group.name']"
+                 [globalFilterFields]="['name', '_searchLocations', 'group.name']"
                  [rowHover]="true" 
                  responsiveLayout="scroll">
             
             <ng-template pTemplate="header">
                 <tr>
                     <th style="width: 3rem"><p-tableHeaderCheckbox></p-tableHeaderCheckbox></th>
-                    <th pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
+                    <th pSortableColumn="id" style="width: 80px;">ID <p-sortIcon field="id"></p-sortIcon></th>
                     <th pSortableColumn="name">Név <p-sortIcon field="name"></p-sortIcon></th>
-                    <th pSortableColumn="totalQuantity" class="text-right">Beszállított db <p-sortIcon field="totalQuantity"></p-sortIcon></th>
-                    <th pSortableColumn="city">Telephely <p-sortIcon field="city"></p-sortIcon></th>
-                    <th pSortableColumn="county">Megye <p-sortIcon field="county"></p-sortIcon></th>
-                    <th></th>
+                    <th pSortableColumn="totalQuantity" class="text-right" style="width: 150px;">Beszállított db <p-sortIcon field="totalQuantity"></p-sortIcon></th>
+                    
+                    <th pSortableColumn="_firstCity">Telephelyek <p-sortIcon field="_firstCity"></p-sortIcon></th>
+                    
+                    <th style="width: 120px;"></th>
                 </tr>
             </ng-template>
 
             <ng-template pTemplate="body" let-partner>
                 <tr class="cursor-pointer table-row-hover" 
                     (click)="openPartnerStats(partner)"
-                    [ngStyle]="getRowStyle(partner)"> <td (click)="$event.stopPropagation()" class="py-4">
+                    [ngStyle]="getRowStyle(partner)"> 
+                    
+                    <td (click)="$event.stopPropagation()" class="py-4">
                         <p-tableCheckbox [value]="partner"></p-tableCheckbox>
                     </td>
                     
                     <td><span class="opacity-60">#{{partner.id}}</span></td>
+                    
                     <td>
                         <div class="font-bold text-lg flex align-items-center gap-2">
                             {{partner.name}}
@@ -109,8 +109,24 @@
                             {{ partner.totalQuantity | number:'1.0-0' }} db
                         </span>
                     </td>
-                    <td>{{partner.city}}</td>
-                    <td><span class="county-badge">{{partner.county}}</span></td>
+
+                    <td class="vertical-align-top">
+                        <div *ngIf="partner.locations?.length; else noLoc">
+                            <div *ngFor="let loc of partner.locations" 
+                                 class="mb-2 flex align-items-center p-2 border-round hover:surface-200 cursor-pointer transition-colors transition-duration-200"
+                                 (click)="openLocationStats(loc, partner); $event.stopPropagation()">
+                                
+                                <i class="pi pi-map-marker text-primary text-sm mr-2"></i>
+                                <div>
+                                    <span class="font-medium text-800">{{loc.city}}</span>
+                                    <span class="text-500 text-sm ml-1">({{loc.county}})</span>
+                                </div>
+                            </div>
+                        </div>
+                        <ng-template #noLoc>
+                            <span class="text-500 italic text-sm">Nincs rögzítve</span>
+                        </ng-template>
+                    </td>
                     
                     <td class="text-right">
                         <div class="flex justify-content-end gap-2">
@@ -132,8 +148,6 @@
                                     pTooltip="Törlés" tooltipPosition="top"
                                     (click)="deletePartner($event, partner); $event.stopPropagation()">
                             </button>
-                            
-                            <i class="pi pi-chevron-right text-400 ml-2"></i>
                         </div>
                     </td>
                 </tr>
@@ -141,7 +155,7 @@
 
             <ng-template pTemplate="emptymessage">
                 <tr>
-                    <td colspan="7" class="text-center p-4 text-500">Nincs találat.</td>
+                    <td colspan="6" class="text-center p-4 text-500">Nincs találat.</td>
                 </tr>
             </ng-template>
         </p-table>
@@ -153,8 +167,7 @@
     [partner]="selectedPartner"
     [disableSidebarAnim]="disableSidebarAnim"
     (closed)="onSidebarHide()">
-  </app-partner-sidebar>
-
+</app-partner-sidebar>
 
 <app-partner-create-dialog #createDialog (onSave)="onPartnerCreated()"></app-partner-create-dialog>
 <app-partner-group-create-dialog #groupDialog (onSave)="onDataChanged()"></app-partner-group-create-dialog>

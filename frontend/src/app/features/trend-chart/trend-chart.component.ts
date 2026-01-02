@@ -1,17 +1,27 @@
 import { Component, Input, OnChanges, SimpleChanges, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms'; // Kell a ngModel-hez
 import { ChartModule } from 'primeng/chart';
+import { DropdownModule } from 'primeng/dropdown'; // Kell a lenyílóhoz
 
 @Component({
   selector: 'app-trend-chart',
   standalone: true,
-  imports: [CommonModule, ChartModule],
+  imports: [CommonModule, ChartModule, DropdownModule, FormsModule],
   template: `
     <div *ngIf="chartData" class="modern-card mb-5 p-3">
-        <div class="flex justify-content-between align-items-center mb-3">
+        <div class="flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h4 class="m-0 font-medium" style="color: var(--p-text-color)">
                 Éves Beszállítási Mennyiség (db) / Hét
             </h4>
+            <p-dropdown 
+                [options]="years" 
+                [(ngModel)]="selectedYear" 
+                (onChange)="initChart()" 
+                [style]="{'width':'150px'}" 
+                optionLabel="label"
+                optionValue="value">
+            </p-dropdown>
         </div>
         <div style="height: 300px;">
             <p-chart type="bar" [data]="chartData" [options]="chartOptions" height="100%"></p-chart>
@@ -25,6 +35,9 @@ export class TrendChartComponent implements OnChanges, OnInit, OnDestroy {
   chartData: any;
   chartOptions: any;
   
+  years: any[] = [];
+  selectedYear: number = new Date().getFullYear();
+
   private themeObserver: MutationObserver | null = null;
 
   private baseColors = [
@@ -43,7 +56,38 @@ export class TrendChartComponent implements OnChanges, OnInit, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['shipments'] && this.shipments) {
+      this.updateYears();
       this.initChart();
+    }
+  }
+
+  updateYears() {
+    if (!this.shipments || this.shipments.length === 0) {
+        this.years = [{ label: this.selectedYear.toString(), value: this.selectedYear }];
+        return;
+    }
+
+    const uniqueYears = new Set<number>();
+    
+    this.shipments.forEach(s => {
+        const dateStr = s.processingDate || s.deliveryDate;
+        if (dateStr) {
+            const year = new Date(dateStr).getFullYear();
+            uniqueYears.add(year);
+        }
+    });
+
+    if (uniqueYears.size === 0) {
+        uniqueYears.add(new Date().getFullYear());
+    }
+
+    this.years = Array.from(uniqueYears)
+        .sort((a, b) => b - a)
+        .map(y => ({ label: y.toString(), value: y }));
+
+    const hasSelected = this.years.some(y => y.value === this.selectedYear);
+    if (!hasSelected && this.years.length > 0) {
+        this.selectedYear = this.years[0].value;
     }
   }
 
@@ -53,24 +97,27 @@ export class TrendChartComponent implements OnChanges, OnInit, OnDestroy {
         return;
     }
 
-    // 1. X-Tengely: 1-53 hét
     const weeks = Array.from({length: 53}, (_, i) => (i + 1) + '. hét');
-
-    // 2. Adatok csoportosítása
     const partnerDataMap = new Map<string, number[]>();
 
-    this.shipments.forEach(ship => {
+    const filteredShipments = this.shipments.filter(ship => {
+        const dateStr = ship.processingDate || ship.deliveryDate;
+        if (!dateStr) return false;
+        const year = new Date(dateStr).getFullYear();
+        return year === this.selectedYear;
+    });
+
+    if (filteredShipments.length === 0) {
+    }
+
+    filteredShipments.forEach(ship => {
         const amount = ship.netQuantity ? ship.netQuantity : (ship.quantity || 0);
         
-        // MÓDOSÍTÁS: Közvetlenül a vágási hetet használjuk!
         let weekIndex = -1;
-        
         if (ship.processingWeek) {
-             // 1. hét -> 0. index a tömbben
              weekIndex = ship.processingWeek - 1; 
         }
 
-        // Csak akkor dolgozzuk fel, ha érvényes hét (1-53)
         if (weekIndex >= 0 && weekIndex < 53) {
             const name = ship.partner ? ship.partner.name : 'Ismeretlen';
 
@@ -82,7 +129,6 @@ export class TrendChartComponent implements OnChanges, OnInit, OnDestroy {
         }
     });
 
-    // 3. Datasets összeállítása
     const isDark = document.documentElement.classList.contains('my-app-dark');
     const textColor = isDark ? '#ffffff' : '#334155';
     const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
@@ -143,8 +189,6 @@ export class TrendChartComponent implements OnChanges, OnInit, OnDestroy {
         }
     };
   }
-
-  // --- SEGÉDFÜGGVÉNYEK ---
 
   getColor(index: number): string {
       if (index < this.baseColors.length) {

@@ -1,9 +1,9 @@
 package com.poultry.backend.services;
 
 import com.poultry.backend.dtos.CreateShipmentDTO;
-import com.poultry.backend.entities.Partner;
+import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.entities.Shipment;
-import com.poultry.backend.repositories.PartnerRepository;
+import com.poultry.backend.repositories.PartnerLocationRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,17 +17,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ShipmentService {
     private final ShipmentRepository shipmentRepository;
-    private final PartnerRepository partnerRepository;
+    private final PartnerLocationRepository partnerLocationRepository;
 
     public Shipment createShipment(CreateShipmentDTO createShipment) {
         validateAndFixDeliveryCode(createShipment);
         validateNumericFields(createShipment);
+        if (createShipment.getLocationId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A telephely (Location ID) megadása kötelező!");
+        }
 
-        Partner partner = partnerRepository.findById(createShipment.getPartnerId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Partner nem található!"));
+        PartnerLocation location = partnerLocationRepository.findById(createShipment.getLocationId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Telephely nem található!"));
 
         Shipment shipment = new Shipment();
-        shipment.setPartner(partner);
+        shipment.setLocation(location);
 
         mapDtoToEntity(createShipment, shipment);
 
@@ -41,17 +44,29 @@ public class ShipmentService {
         Shipment shipment = shipmentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nincs ilyen szállítás"));
 
+        if (shipmentToUpdate.getLocationId() != null &&
+                !shipmentToUpdate.getLocationId().equals(shipment.getLocation().getId())) {
+
+            PartnerLocation newLocation = partnerLocationRepository.findById(shipmentToUpdate.getLocationId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Új telephely nem található"));
+            shipment.setLocation(newLocation);
+        }
+
         mapDtoToEntity(shipmentToUpdate, shipment);
 
         return shipmentRepository.save(shipment);
     }
 
     public List<Shipment> getHistoryByPartner(Long partnerId) {
-        return shipmentRepository.findByPartnerIdOrderByProcessingDateDesc(partnerId);
+        return shipmentRepository.findByLocationPartnerIdOrderByProcessingDateDesc(partnerId);
     }
 
     public List<Shipment> getHistoryByPartner(List<Long> partnerIds) {
-        return shipmentRepository.findByPartnerIdInOrderByProcessingDateDesc(partnerIds);
+        return shipmentRepository.findByLocationPartnerIdInOrderByProcessingDateDesc(partnerIds);
+    }
+
+    public List<Shipment> getHistoryByLocation(Long locationId) {
+        return shipmentRepository.findByLocationIdOrderByProcessingDateDesc(locationId);
     }
 
     public List<Shipment> getAllShipments() {
@@ -84,15 +99,12 @@ public class ShipmentService {
         shipment.setTransportMortalityKg(createShipment.getTransportMortalityKg());
         shipment.setFatteningDays(createShipment.getFatteningDays());
 
-        // 1. Beszállított darabszám (NetQuantity) számítása
-        // Logika: Befogott db (Quantity) - Elhullás (MortalityCount)
         int calculatedNetQuantity = 0;
         if (createShipment.getQuantity() != null) {
             int mortality = createShipment.getMortalityCount() != null ? createShipment.getMortalityCount() : 0;
             calculatedNetQuantity = createShipment.getQuantity() - mortality;
             shipment.setNetQuantity(calculatedNetQuantity);
         } else {
-            // Ha valamiért nincs befogott db, de van direktben megadott nettó db (frissítésnél)
             calculatedNetQuantity = createShipment.getNetQuantity() != null ? createShipment.getNetQuantity() : 0;
             shipment.setNetQuantity(calculatedNetQuantity);
         }

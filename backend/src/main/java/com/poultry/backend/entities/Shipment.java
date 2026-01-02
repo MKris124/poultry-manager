@@ -20,9 +20,9 @@ public class Shipment {
     private Long id;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "partner_id", nullable = false)
+    @JoinColumn(name = "location_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private Partner partner;
+    private PartnerLocation location;
 
     private String deliveryCode;
     private LocalDate deliveryDate;
@@ -42,4 +42,8 @@ public class Shipment {
 
     private Integer netQuantity;
     private Double netWeight;
+
+    public Partner getPartner() {
+        return location != null ? location.getPartner() : null;
+    }
 }

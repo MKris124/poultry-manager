@@ -1,57 +1,83 @@
-<p-dialog header="Új Partner Felvétele" 
-          [(visible)]="visible" 
-          [modal]="true" 
-          [style]="{width: '450px'}" 
-          [draggable]="false" 
-          [resizable]="false">
+<p-dialog 
+    [header]="isEditMode ? 'Partner Szerkesztése' : 'Új Partner Felvétele'" 
+    [(visible)]="visible" 
+    [modal]="true" 
+    [style]="{width: '650px'}" 
+    [draggable]="false" 
+    [resizable]="false"
+    styleClass="p-fluid">
     
-    <div class="flex flex-column gap-4 pt-2">
+    <div class="flex flex-column gap-4 pt-3">
         
-        <div class="flex flex-column gap-2">
-            <label for="id" class="font-bold text-sm">Azonosító (ID)</label>
-            <input pInputText id="id" type="number" [(ngModel)]="partner.id" placeholder="pl. 123" class="w-full" [disabled]="isEditMode"/>
-        </div>
-        
-        <div class="flex flex-column gap-2">
-            <label for="name" class="font-bold text-sm">Név</label>
-            <input pInputText id="name" [(ngModel)]="partner.name" placeholder="pl. Példa Péter" class="w-full" />
-        </div>
-
-        <div class="flex flex-column gap-2">
-            <label for="county" class="font-bold text-sm">Megye</label>
-            <p-dropdown 
-                inputId="county"
-                [options]="counties" 
-                [(ngModel)]="partner.county" 
-                (onChange)="onCountyChange()"
-                placeholder="Válassz megyét..." 
-                [style]="{'width':'100%'}"
-                appendTo="body">
-            </p-dropdown>
+        <div class="flex gap-3 w-full">
+            <div class="flex flex-column gap-2 w-4"> 
+                <label for="id" class="font-bold text-sm">Azonosító (ID)</label>
+                <input pInputText id="id" type="number" [(ngModel)]="partner.id" placeholder="pl. 123" [disabled]="isEditMode" class="w-full"/>
+            </div>
+            
+            <div class="flex flex-column gap-2 w-8">
+                <label for="name" class="font-bold text-sm">Név</label>
+                <input pInputText id="name" [(ngModel)]="partner.name" placeholder="pl. Példa Péter" class="w-full"/>
+            </div>
         </div>
 
-        <div class="flex flex-column gap-2">
-            <label for="city" class="font-bold text-sm">Telephely</label>
-            <p-dropdown 
-                inputId="city"
-                [options]="cities" 
-                [(ngModel)]="partner.city" 
-                [filter]="true"
-                filterBy="label" 
-                [showClear]="true"
-                placeholder="Válassz települést..." 
-                [disabled]="!partner.county"
-                emptyFilterMessage="Nincs találat"
-                [style]="{'width':'100%'}"
-                appendTo="body">
-            </p-dropdown>
-            <small *ngIf="!partner.county" class="text-500">Előbb válassz megyét!</small>
-        </div>
+        <div>
+            <div class="flex justify-content-between align-items-center mb-2">
+                <label class="font-bold text-sm">Telephelyek (Beszállítási helyek)</label>
+                <button pButton icon="pi pi-plus" label="Új hely" 
+                        class="p-button-sm p-button-success p-button-outlined" 
+                        (click)="addLocation()"></button>
+            </div>
 
+            <div class="surface-card p-3 border-round shadow-1" style="background-color: #f8f9fa;">
+                
+                <div *ngIf="partner.locations.length === 0" class="text-center text-500 italic">
+                    Nincs rögzített telephely. Kattints az "Új hely" gombra!
+                </div>
+
+                <div *ngFor="let loc of partner.locations; let i = index" class="grid align-items-end mb-2 pb-2 border-bottom-1 surface-border">
+                    
+                    <div class="col-5">
+                        <label class="text-xs text-500 mb-1 block">Megye</label>
+                        <p-dropdown 
+                            [options]="counties" 
+                            [(ngModel)]="loc.county" 
+                            (onChange)="onCountyChange(loc)"
+                            placeholder="Megye..." 
+                            [style]="{'width':'100%'}"
+                            appendTo="body">
+                        </p-dropdown>
+                    </div>
+
+                    <div class="col-6">
+                        <label class="text-xs text-500 mb-1 block">Település</label>
+                        <p-dropdown 
+                            [options]="loc.availableCities" 
+                            [(ngModel)]="loc.city" 
+                            [filter]="true"
+                            filterBy="label" 
+                            [showClear]="true"
+                            placeholder="Település..." 
+                            [disabled]="!loc.county"
+                            emptyFilterMessage="Nincs találat"
+                            [style]="{'width':'100%'}"
+                            appendTo="body">
+                        </p-dropdown>
+                    </div>
+
+                    <div class="col-1 flex justify-content-end">
+                        <button pButton icon="pi pi-trash" 
+                                class="p-button-rounded p-button-danger p-button-text" 
+                                pTooltip="Törlés"
+                                (click)="removeLocation(i)"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <ng-template pTemplate="footer">
         <p-button label="Mégse" icon="pi pi-times" (click)="visible = false" styleClass="p-button-text"></p-button>
-        <p-button label="Mentés" icon="pi pi-check" (click)="save()" [disabled]="!partner.id || !partner.name || !partner.city"></p-button>
+        <p-button label="Mentés" icon="pi pi-check" (click)="save()" [disabled]="!isValid()"></p-button>
     </ng-template>
 </p-dialog>

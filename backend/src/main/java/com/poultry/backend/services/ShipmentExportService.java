@@ -28,18 +28,15 @@ public class ShipmentExportService {
     };
 
     public ByteArrayInputStream exportShipments(List<Long> partnerIds) throws IOException {
-        List<Shipment> shipments = shipmentRepository.findByPartnerIdInOrderByProcessingDateDesc(partnerIds);
+        List<Shipment> shipments = shipmentRepository.findByLocationPartnerIdInOrderByProcessingDateDesc(partnerIds);
 
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Adatok");
-
             CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle dataStyle = createDataStyle(workbook);
-
             CellStyle decimalStyle = createDecimalStyle(workbook, dataStyle);
-
             CellStyle percentStyle = createPercentStyle(workbook, dataStyle);
 
             createHeaderRow(sheet, headerStyle);
@@ -51,7 +48,6 @@ public class ShipmentExportService {
             }
 
             autoSizeColumns(sheet);
-
             workbook.write(out);
             return new ByteArrayInputStream(out.toByteArray());
         }
@@ -59,13 +55,19 @@ public class ShipmentExportService {
 
     private void fillExportRow(Row row, Shipment shipment, CellStyle dataStyle, CellStyle decimalStyle, CellStyle percentStyle) {
         String rawCode = shipment.getDeliveryCode() != null ? shipment.getDeliveryCode() : "";
-        String prefix = shipment.getPartner().getId() + "/";
+
+        Long partnerId = shipment.getLocation().getPartner().getId();
+        String partnerName = shipment.getLocation().getPartner().getName();
+
+        String prefix = partnerId + "/";
         String finalCode = rawCode.startsWith(prefix) ? rawCode : prefix + rawCode;
-        String fullNameCode = shipment.getPartner().getName() + " " + finalCode;
+        String fullNameCode = partnerName + " " + finalCode;
 
         createCell(row, 0, fullNameCode, dataStyle);
-        createCell(row, 1, shipment.getPartner().getCity(), dataStyle);
-        createCell(row, 2, shipment.getPartner().getCounty(), dataStyle);
+
+        createCell(row, 1, shipment.getLocation().getCity(), dataStyle);
+        createCell(row, 2, shipment.getLocation().getCounty(), dataStyle);
+
         createCell(row, 3, formatDate(shipment.getDeliveryDate()), dataStyle);
 
         int befogoDb = shipment.getQuantity() != null ? shipment.getQuantity() : 0;
@@ -87,7 +89,6 @@ public class ShipmentExportService {
             calculatedWeek = shipment.getProcessingWeek() != null ? shipment.getProcessingWeek() : 0;
         }
         createCell(row, 7, calculatedWeek, dataStyle);
-
         createCell(row, 8, formatDate(shipment.getProcessingDate()), dataStyle);
 
         int beszallitottDb = befogoDb - elhullasDb;
@@ -101,16 +102,13 @@ public class ShipmentExportService {
 
         createCell(row, 12, utihullaDb, dataStyle);
         createCell(row, 13, utihullaKg, decimalStyle);
-
         createCell(row, 14, shipment.getKosherPercent(), decimalStyle);
         createCell(row, 15, shipment.getLiverWeight(), decimalStyle);
         createCell(row, 16, shipment.getFatteningRate(), decimalStyle);
         createCell(row, 17, elhullasDb, dataStyle);
 
         double calculatedMortalityRate = (befogoDb > 0) ? ((double) elhullasDb / befogoDb) : 0.0;
-
         createCell(row, 18, calculatedMortalityRate, percentStyle);
-
         createCell(row, 19, shipment.getFatteningDays(), dataStyle);
     }
 

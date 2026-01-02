@@ -28,6 +28,11 @@ public class AnalyticsController {
         return analyticsService.getPartnerStats(id);
     }
 
+    @GetMapping("/location/{id}")
+    public PartnerStatsDTO getLocationStats(@PathVariable Long id) {
+        return analyticsService.getLocationStats(id);
+    }
+
     @GetMapping("/leaderboard")
     public List<LeaderboardDTO> getLeaderboard() {
         return analyticsService.getLeaderboard();

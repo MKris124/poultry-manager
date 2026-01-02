@@ -4,6 +4,7 @@ import com.poultry.backend.dtos.CreateGroupDTO;
 import com.poultry.backend.dtos.PartnerTotalQuantityDTO;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerGroup;
+import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.repositories.PartnerGroupRepository;
 import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,14 +53,37 @@ public class PartnerService {
         return partnerRepository.save(partner);
     }
 
+    @Transactional // Fontos a tranzakció kezelés miatt!
     public Partner updatePartner(Long id, Partner partnerDetails) {
-        Partner partner = partnerRepository.findById(id)
+        Partner existingPartner = partnerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Partner nem található"));
 
-        partner.setName(partnerDetails.getName());
-        partner.setCity(partnerDetails.getCity());
-        partner.setCounty(partnerDetails.getCounty());
-        return partnerRepository.save(partner);
+        existingPartner.setName(partnerDetails.getName());
+
+        if (partnerDetails.getLocations() != null) {
+            List<Long> incomingIds = new ArrayList<>();
+
+            for (PartnerLocation incomingLoc : partnerDetails.getLocations()) {
+                if (incomingLoc.getId() == null) {
+                    incomingLoc.setPartner(existingPartner);
+                    existingPartner.getLocations().add(incomingLoc);
+                } else {
+                    incomingIds.add(incomingLoc.getId());
+                    existingPartner.getLocations().stream()
+                            .filter(l -> l.getId().equals(incomingLoc.getId()))
+                            .findFirst()
+                            .ifPresent(existingLoc -> {
+                                existingLoc.setCity(incomingLoc.getCity());
+                                existingLoc.setCounty(incomingLoc.getCounty());
+                            });
+                }
+            }
+            existingPartner.getLocations().removeIf(loc ->
+                    loc.getId() != null && !incomingIds.contains(loc.getId())
+            );
+        }
+
+        return partnerRepository.save(existingPartner);
     }
 
     public void deletePartner(Long id) {

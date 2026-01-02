@@ -5,6 +5,10 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "partners")
@@ -17,8 +21,10 @@ public class Partner {
 
     @Column(nullable = false)
     private String name;
-    private String city;
-    private String county;
+
+    @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ToString.Exclude
+    private List<PartnerLocation> locations = new ArrayList<>();
 
     @Transient
     private Long totalQuantity;

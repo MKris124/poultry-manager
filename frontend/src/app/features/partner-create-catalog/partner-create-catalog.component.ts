@@ -5,27 +5,29 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
+import { TooltipModule } from 'primeng/tooltip';
 import { PartnerService } from '../../services/partner.service';
 import { LocationService } from '../../services/location.service';
+import { MessageService } from 'primeng/api';
 
 @Component({
   selector: 'app-partner-create-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, ButtonModule, InputTextModule, DropdownModule],
+  imports: [CommonModule, FormsModule, DialogModule, ButtonModule, InputTextModule, DropdownModule, TooltipModule],
   templateUrl: './partner-create-dialog.component.html'
 })
 export class PartnerCreateDialogComponent implements OnInit {
   @Output() onSave = new EventEmitter<any>();
   visible: boolean = false;
-  isEditMode: boolean = false; // <--- ÚJ
+  isEditMode: boolean = false;
 
-  partner: any = { id: null, name: '', city: '', county: '' };
+  partner: any = { id: null, name: '', locations: [] };
   counties: any[] = [];
-  cities: any[] = [];
 
   constructor(
     private partnerService: PartnerService,
-    private locationService: LocationService
+    private locationService: LocationService,
+    private messageService: MessageService
   ) {}
 
   ngOnInit() {
@@ -34,51 +36,85 @@ export class PartnerCreateDialogComponent implements OnInit {
     });
   }
 
-  // ÚJ FELVITEL
   show() {
     this.isEditMode = false;
-    this.partner = { id: null, name: '', city: '', county: '' };
-    this.cities = [];
+    this.partner = { id: null, name: '', locations: [] };
+    this.addLocation();
     this.visible = true;
   }
 
-  // SZERKESZTÉS MEGNYITÁSA (ÚJ)
   showEdit(partnerToEdit: any) {
       this.isEditMode = true;
-      this.partner = { ...partnerToEdit }; // Másolat készítése
-      
-      // Városok betöltése a meglévő megyéhez
-      if (this.partner.county) {
-          this.locationService.getCities(this.partner.county).subscribe(data => {
-            this.cities = data.map(c => ({ label: c, value: c }));
-        });
+      this.partner = JSON.parse(JSON.stringify(partnerToEdit));
+
+      if (!this.partner.locations) {
+          this.partner.locations = [];
       }
+
+      this.partner.locations.forEach((loc: any) => {
+          if (loc.county) {
+              this.loadCitiesForLocation(loc);
+          }
+      });
+
       this.visible = true;
   }
 
-  onCountyChange() {
-    this.partner.city = '';
-    if (this.partner.county) {
-        this.locationService.getCities(this.partner.county).subscribe(data => {
-            this.cities = data.map(c => ({ label: c, value: c }));
-        });
-    } else {
-        this.cities = [];
-    }
+
+  addLocation() {
+      this.partner.locations.push({ 
+          city: '', 
+          county: '', 
+          availableCities: []
+      });
+  }
+
+  removeLocation(index: number) {
+      this.partner.locations.splice(index, 1);
+  }
+
+  onCountyChange(loc: any) {
+      loc.city = '';
+      this.loadCitiesForLocation(loc);
+  }
+
+  loadCitiesForLocation(loc: any) {
+      if (loc.county) {
+          this.locationService.getCities(loc.county).subscribe(data => {
+              loc.availableCities = data.map(c => ({ label: c, value: c }));
+          });
+      } else {
+          loc.availableCities = [];
+      }
+  }
+
+  isValid(): boolean {
+      if (!this.partner.id || !this.partner.name) return false;
+      for (const loc of this.partner.locations) {
+          if (!loc.city || !loc.county) return false;
+      }
+      return true;
   }
 
   save() {
+    const cleanPartner = JSON.parse(JSON.stringify(this.partner));
+    cleanPartner.locations.forEach((loc: any) => delete loc.availableCities);
+
     if (this.isEditMode) {
-        // UPDATE HÍVÁS
-        this.partnerService.updatePartner(this.partner.id, this.partner).subscribe(() => {
-            this.onSave.emit();
-            this.visible = false;
+        this.partnerService.updatePartner(this.partner.id, cleanPartner).subscribe({
+            next: () => {
+                this.onSave.emit();
+                this.visible = false;
+            },
+            error: () => this.messageService.add({severity:'error', summary:'Hiba', detail:'Mentés sikertelen'})
         });
     } else {
-        // CREATE HÍVÁS
-        this.partnerService.createPartner(this.partner).subscribe(() => {
-            this.onSave.emit();
-            this.visible = false;
+        this.partnerService.createPartner(cleanPartner).subscribe({
+            next: () => {
+                this.onSave.emit();
+                this.visible = false;
+            },
+            error: () => this.messageService.add({severity:'error', summary:'Hiba', detail:'Létrehozás sikertelen'})
         });
     }
   }

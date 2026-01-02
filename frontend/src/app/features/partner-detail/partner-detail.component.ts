@@ -38,9 +38,7 @@ export class PartnerDetailComponent implements OnChanges {
   selectedStats: any = null;
   isSaving: boolean = false;
 
-  // OPTIMALIZÁCIÓ: Dirty Set - Csak a változott sorok ID-ját tároljuk
   dirtyRowIds: Set<number> = new Set();
-  // Új sorok (még nincs ID-juk, vagy negatív ID-val kezeljük)
   newRowsSet: Set<any> = new Set();
 
   cols: any[] = [
@@ -107,7 +105,14 @@ export class PartnerDetailComponent implements OnChanges {
     this.dirtyRowIds.clear();
     this.newRowsSet.clear();
 
-    if (this.partner.isGroup) {
+    if (this.partner.isLocation) {
+        this.shipmentService.getShipmentsByLocation(this.partner.locationId).subscribe(data => {
+            this.processShipmentData(data);
+        });
+        
+        this.analyticsService.getLocationStats(this.partner.locationId).subscribe(s => this.selectedStats = s);
+
+    } else if (this.partner.isGroup) {
         this.shipmentService.getHistoryByPartners(this.partner.ids).subscribe(data => {
             this.processShipmentData(data);
             this.calculateGroupStats();
@@ -125,7 +130,11 @@ export class PartnerDetailComponent implements OnChanges {
   processShipmentData(data: any[]) {
       this.shipments = data.map(ship => {
         const avg = ship.quantity > 0 ? (ship.totalWeight / ship.quantity) : 0;
-        return { ...ship, avgWeight: avg };
+        return { 
+            ...ship, 
+            avgWeight: avg,
+            locationId: ship.location?.id
+        };
       });
       this.shipments.forEach(s => this.clonedShipments[s.id] = { ...s });
   }
@@ -183,7 +192,9 @@ export class PartnerDetailComponent implements OnChanges {
 
         const dto = { 
             ...ship, 
-            partnerId: ship.partnerId || this.partner.id,
+            locationId: this.partner.isLocation ? this.partner.locationId : ship.locationId,
+            partnerId: this.partner.isLocation ? this.partner.originalPartnerId : (ship.partnerId || this.partner.id),
+            
             deliveryDate: formattedDate,
             netQuantity: currentNetQty,
             fatteningRate: null, 
@@ -245,15 +256,26 @@ export class PartnerDetailComponent implements OnChanges {
         return;
     }
 
+    if (!this.partner.isLocation) {
+        this.messageService.add({
+            severity:'warn', 
+            summary:'Válassz telephelyet!', 
+            detail:'Új szállítás rögzítéséhez kérlek kattints a partner egyik településére a listában!'
+        });
+        return;
+    }
+
     const newRow = {
-      // Nincs ID, így tudjuk, hogy új
-      partnerId: this.partner.id, deliveryCode: '', deliveryDate: new Date().toISOString().split('T')[0],
+      locationId: this.partner.locationId,
+      partnerId: this.partner.originalPartnerId,
+      
+      deliveryCode: '', deliveryDate: new Date().toISOString().split('T')[0],
       processingDate: null, quantity: 0, totalWeight: 0, avgWeight: 0, liverWeight: 0,
       kosherPercent: 0, fatteningRate: 0, mortalityCount: 0, mortalityRate: 0
     };
     
     this.shipments = [newRow, ...this.shipments];
-    this.newRowsSet.add(newRow); // Azonnal jelöljük újként
+    this.newRowsSet.add(newRow); 
   }
 
   revertAll() { 
@@ -271,9 +293,8 @@ export class PartnerDetailComponent implements OnChanges {
     }
   }
 
-  // OPTIMALIZÁCIÓ: Ez most már csak akkor fut, ha szerkeszt a felhasználó
   onCellEdit(ship: any) {
-      if (!ship.id) return; // Az új sorokat a newRowsSet kezeli
+      if (!ship.id) return; 
 
       if (this.checkRowReallyChanged(ship)) {
           this.dirtyRowIds.add(ship.id);
@@ -282,7 +303,6 @@ export class PartnerDetailComponent implements OnChanges {
       }
   }
 
-  // A kalkuláció változtatja az adatot, ezért itt is hívjuk a dirty check-et
   recalculateAvg(ship: any) {
     ship.avgWeight = ship.quantity > 0 ? (ship.totalWeight / ship.quantity) : 0;
     this.onCellEdit(ship);
@@ -310,14 +330,12 @@ export class PartnerDetailComponent implements OnChanges {
     return JSON.stringify(shipProps) !== JSON.stringify(origProps);
   }
 
-  // OPTIMALIZÁCIÓ: Cache-ből olvas
   isColVisible(field: string): boolean { 
       return this.visibleColumnsSet.has(field); 
   }
 
-  // OPTIMALIZÁCIÓ: trackBy az ngFor-hoz (Angular belső gyorsítás)
   trackByFn(index: number, item: any) {
-      return item.id; // vagy index, ha nincs id az új soroknál
+      return item.id; 
   }
 
   getLiverColor(val: number): string { return !val ? '' : (val >= 0.6 ? 'text-green-500' : 'text-yellow-500'); }

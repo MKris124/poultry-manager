@@ -83,16 +83,21 @@ export class PartnerListComponent implements OnInit, OnDestroy {
   };
 
   loadPartners() {
-    this.partnerService.getPartners().subscribe({
-      next: (data) => {
-        this.partners = data;
-      },
-      error: (err) => {
-        console.error('Hiba a partnerek betöltésekor:', err);
-        this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült betölteni a partnereket.'});
-      }
-    });
-  }
+  this.partnerService.getPartners().subscribe({
+    next: (data) => {
+      this.partners = data.map((p: any) => ({
+        ...p,
+        _searchLocations: p.locations?.map((l: any) => l.city + ' ' + l.county).join(' '),
+        _firstCity: p.locations?.[0]?.city || '',
+        _firstCounty: p.locations?.[0]?.county || ''
+      }));
+    },
+    error: (err) => {
+      console.error('Hiba a partnerek betöltésekor:', err);
+      this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült betölteni a partnereket.'});
+    }
+  });
+}
 
   onDataChanged() {
     this.loadPartners();
@@ -103,6 +108,21 @@ export class PartnerListComponent implements OnInit, OnDestroy {
     if (this.selectedPartners.length > 1) {
         this.groupDialog.show(this.selectedPartners);
     }
+  }
+
+  openLocationStats(location: any, partner: any) {
+    this.disableSidebarAnim = false;
+    
+    const virtualLocationPartner = {
+        ...partner,                 
+        name: `${partner.name} (${location.city})`, 
+        isLocation: true,           
+        locationId: location.id,    
+        originalPartnerId: partner.id 
+    };
+
+    this.selectedPartner = virtualLocationPartner;
+    this.sidebarVisible = true;
   }
 
   deleteGroupOfPartner(partner: any) {

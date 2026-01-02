@@ -1,6 +1,7 @@
 package com.poultry.backend.repositories;
 
 import com.poultry.backend.dtos.PartnerTotalQuantityDTO;
+import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.entities.Shipment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,13 +12,18 @@ import java.util.Optional;
 
 @Repository
 public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
-    List<Shipment> findByPartnerIdOrderByProcessingDateDesc(Long partnerId);
+    List<Shipment> findByLocationPartnerIdOrderByProcessingDateDesc(Long partnerId);
 
-    List<Shipment> findByPartnerIdInOrderByProcessingDateDesc(List<Long> partnerIds);
+    List<Shipment> findByLocationPartnerIdInOrderByProcessingDateDesc(List<Long> partnerIds);
 
-    Optional<Shipment> findByDeliveryCodeAndPartnerId( String deliveryCode, Long partnerId);
+    Optional<Shipment> findByDeliveryCodeAndLocationPartnerId(String deliveryCode, Long partnerId);
 
-    @Query("SELECT new com.poultry.backend.dtos.PartnerTotalQuantityDTO(s.partner.id, SUM(s.netQuantity)) " +
-            "FROM Shipment s GROUP BY s.partner.id")
+    List<Shipment> findByLocationIdOrderByProcessingDateDesc(Long locationId);
+
+    Optional<Shipment> findByDeliveryCodeAndLocation(String deliveryCode, PartnerLocation location);
+
+
+    @Query("SELECT new com.poultry.backend.dtos.PartnerTotalQuantityDTO(s.location.partner.id, SUM(s.netQuantity)) " +
+            "FROM Shipment s GROUP BY s.location.partner.id")
     List<PartnerTotalQuantityDTO> getTotalQuantitiesByPartner();
 }

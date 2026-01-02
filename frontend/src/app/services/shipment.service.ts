@@ -18,6 +18,10 @@ export class ShipmentService {
     return this.http.post<any[]>(`${this.apiUrl}/history/batch`, partnerIds);
   }
 
+  getShipmentsByLocation(locationId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/location/${locationId}`);
+  }
+
   createShipment(data: any): Observable<any> {
     return this.http.post(this.apiUrl, data);
   }
