@@ -1,5 +1,6 @@
 package com.poultry.backend.services;
 
+import com.poultry.backend.entities.Grower;
 import com.poultry.backend.entities.Shipment;
 import com.poultry.backend.repositories.ShipmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +22,8 @@ public class ShipmentExportService {
     private final ShipmentRepository shipmentRepository;
 
     private static final String[] COLUMNS = {
-            "Név", "Telephely", "Megye", "Szállítás\ndátuma", "Befogott\ndb", "Befogott\nkg",
-            "Átlag kg", "Vágási\nHét", "Vágás dátuma", "Beszállít\nott db", "Beszállított\nkg",
+            "Nevelő", "Név", "Telephely", "Megye", "Szállítás\ndátuma", "Befogott\ndb", "Befogott\nkg",
+            "Átlag kg", "Vágási\nHét", "Vágás dátuma", "Beszállított\ndb", "Beszállított\nkg",
             "Leadott\nátl. Kg", "Útihulla\ndb", "Útihulla\nkg", "Kóser %", "Máj Kg",
             "Ráhízás", "Elhullás", "Elhullás %", "Tömés napok"
     };
@@ -63,12 +64,19 @@ public class ShipmentExportService {
         String finalCode = rawCode.startsWith(prefix) ? rawCode : prefix + rawCode;
         String fullNameCode = partnerName + " " + finalCode;
 
-        createCell(row, 0, fullNameCode, dataStyle);
+        String growerText = "";
+        Grower g = shipment.getGrower();
+        if (g != null) {
+            growerText = g.getName() + " " + (g.getCity() != null ? g.getCity() : "");
+        }
+        createCell(row, 0, growerText, dataStyle);
 
-        createCell(row, 1, shipment.getLocation().getCity(), dataStyle);
-        createCell(row, 2, shipment.getLocation().getCounty(), dataStyle);
+        createCell(row, 1, fullNameCode, dataStyle);
 
-        createCell(row, 3, formatDate(shipment.getDeliveryDate()), dataStyle);
+        createCell(row, 2, shipment.getLocation().getCity(), dataStyle);
+        createCell(row, 3, shipment.getLocation().getCounty(), dataStyle);
+
+        createCell(row, 4, formatDate(shipment.getDeliveryDate()), dataStyle);
 
         int befogoDb = shipment.getQuantity() != null ? shipment.getQuantity() : 0;
         double befogoKg = shipment.getTotalWeight() != null ? shipment.getTotalWeight() : 0.0;
@@ -76,11 +84,11 @@ public class ShipmentExportService {
         int utihullaDb = shipment.getTransportMortality() != null ? shipment.getTransportMortality() : 0;
         double utihullaKg = shipment.getTransportMortalityKg() != null ? shipment.getTransportMortalityKg() : 0.0;
 
-        createCell(row, 4, befogoDb, dataStyle);
-        createCell(row, 5, befogoKg, decimalStyle);
+        createCell(row, 5, befogoDb, dataStyle);
+        createCell(row, 6, befogoKg, decimalStyle);
 
         double atlagKg = (befogoDb > 0) ? befogoKg / befogoDb : 0.0;
-        createCell(row, 6, atlagKg, decimalStyle);
+        createCell(row, 7, atlagKg, decimalStyle);
 
         int calculatedWeek;
         if (shipment.getProcessingDate() != null) {
@@ -88,28 +96,28 @@ public class ShipmentExportService {
         } else {
             calculatedWeek = shipment.getProcessingWeek() != null ? shipment.getProcessingWeek() : 0;
         }
-        createCell(row, 7, calculatedWeek, dataStyle);
-        createCell(row, 8, formatDate(shipment.getProcessingDate()), dataStyle);
+        createCell(row, 8, calculatedWeek, dataStyle);
+        createCell(row, 9, formatDate(shipment.getProcessingDate()), dataStyle);
 
         int beszallitottDb = befogoDb - elhullasDb;
-        createCell(row, 9, beszallitottDb, dataStyle);
+        createCell(row, 10, beszallitottDb, dataStyle);
 
         double beszallitottKg = shipment.getNetWeight() != null ? shipment.getNetWeight() : 0.0;
-        createCell(row, 10, beszallitottKg, decimalStyle);
+        createCell(row, 11, beszallitottKg, decimalStyle);
 
         double leadottAtlag = (beszallitottDb > 0) ? beszallitottKg / beszallitottDb : 0.0;
-        createCell(row, 11, leadottAtlag, decimalStyle);
+        createCell(row, 12, leadottAtlag, decimalStyle);
 
-        createCell(row, 12, utihullaDb, dataStyle);
-        createCell(row, 13, utihullaKg, decimalStyle);
-        createCell(row, 14, shipment.getKosherPercent(), decimalStyle);
-        createCell(row, 15, shipment.getLiverWeight(), decimalStyle);
-        createCell(row, 16, shipment.getFatteningRate(), decimalStyle);
-        createCell(row, 17, elhullasDb, dataStyle);
+        createCell(row, 13, utihullaDb, dataStyle);
+        createCell(row, 14, utihullaKg, decimalStyle);
+        createCell(row, 15, shipment.getKosherPercent(), decimalStyle);
+        createCell(row, 16, shipment.getLiverWeight(), decimalStyle);
+        createCell(row, 17, shipment.getFatteningRate(), decimalStyle);
+        createCell(row, 18, elhullasDb, dataStyle);
 
         double calculatedMortalityRate = (befogoDb > 0) ? ((double) elhullasDb / befogoDb) : 0.0;
-        createCell(row, 18, calculatedMortalityRate, percentStyle);
-        createCell(row, 19, shipment.getFatteningDays(), dataStyle);
+        createCell(row, 19, calculatedMortalityRate, percentStyle);
+        createCell(row, 20, shipment.getFatteningDays(), dataStyle);
     }
 
     private void createHeaderRow(Sheet sheet, CellStyle style) {

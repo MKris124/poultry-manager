@@ -109,7 +109,6 @@ export class PartnerDetailComponent implements OnChanges {
         this.shipmentService.getShipmentsByLocation(this.partner.locationId).subscribe(data => {
             this.processShipmentData(data);
         });
-        
         this.analyticsService.getLocationStats(this.partner.locationId).subscribe(s => this.selectedStats = s);
 
     } else if (this.partner.isGroup) {
@@ -118,11 +117,16 @@ export class PartnerDetailComponent implements OnChanges {
             this.calculateGroupStats();
         });
 
+    } else if (this.partner.isGrower) {
+        this.shipmentService.getShipmentsByGrower(this.partner.growerId).subscribe(data => {
+            this.processShipmentData(data);
+        });
+        this.analyticsService.getGrowerStats(this.partner.growerId).subscribe(s => this.selectedStats = s);
+
     } else {
         this.shipmentService.getHistoryByPartner(this.partner.id).subscribe(data => {
             this.processShipmentData(data);
         });
-        
         this.analyticsService.getPartnerStats(this.partner.id).subscribe(s => this.selectedStats = s);
     }
   }
@@ -253,6 +257,11 @@ export class PartnerDetailComponent implements OnChanges {
   addEmptyRow() {
     if (this.partner.isGroup) {
         this.messageService.add({severity:'warn', summary:'Figyelem', detail:'Csoportos nézetben nem lehet új sort felvenni.'});
+        return;
+    }
+
+    if (this.partner.isGrower) {
+        this.messageService.add({severity:'warn', summary:'Figyelem', detail:'Nevelő nézetben nem lehet közvetlenül új sort felvenni.'});
         return;
     }
 

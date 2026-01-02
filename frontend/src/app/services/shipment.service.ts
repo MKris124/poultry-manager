@@ -22,6 +22,10 @@ export class ShipmentService {
     return this.http.get<any[]>(`${this.apiUrl}/location/${locationId}`);
   }
 
+  getShipmentsByGrower(growerId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/grower/${growerId}`);
+  }
+
   createShipment(data: any): Observable<any> {
     return this.http.post(this.apiUrl, data);
   }

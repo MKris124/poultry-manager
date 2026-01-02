@@ -34,6 +34,11 @@ public class ShipmentController {
         return shipmentService.getHistoryByLocation(id);
     }
 
+    @GetMapping("/grower/{id}")
+    public List<Shipment> getHistoryByGrower(@PathVariable Long id) {
+        return shipmentService.getHistoryByGrower(id);
+    }
+
     @PutMapping("/{id}")
     public Shipment update(@PathVariable Long id, @RequestBody CreateShipmentDTO dto) {
         return shipmentService.updateShipment(id, dto);

@@ -40,7 +40,6 @@ export class LeaderboardComponent implements OnInit {
   selectedPartner: any = null;
   disableSidebarAnim: boolean = false;
   
-  // A kinyitott sorok tárolója (Key: ID, Value: true)
   expandedRows: { [key: string]: boolean } = {};
 
   viewMode: 'score' | 'category' = 'score';
@@ -106,15 +105,15 @@ export class LeaderboardComponent implements OnInit {
   }
 
   toggleGroup(partner: any, e?: Event) {
-  e?.stopPropagation();
-  const id = String(partner.partnerId);
-  const next = { ...this.expandedRows };
+    e?.stopPropagation();
+    const id = String(partner.partnerId);
+    const next = { ...this.expandedRows };
 
-  if (next[id]) delete next[id];
-  else next[id] = true;
+    if (next[id]) delete next[id];
+    else next[id] = true;
 
-  this.expandedRows = next;
-}
+    this.expandedRows = next;
+  }
 
 onRowClick(partner: any) {
   if (partner.group) this.toggleGroup(partner);

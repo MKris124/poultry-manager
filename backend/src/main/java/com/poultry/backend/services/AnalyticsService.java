@@ -2,9 +2,11 @@ package com.poultry.backend.services;
 
 import com.poultry.backend.dtos.LeaderboardDTO;
 import com.poultry.backend.dtos.PartnerStatsDTO;
+import com.poultry.backend.entities.Grower;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerGroup;
 import com.poultry.backend.entities.Shipment;
+import com.poultry.backend.repositories.GrowerRepository;
 import com.poultry.backend.repositories.PartnerGroupRepository;
 import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
@@ -20,6 +22,7 @@ public class AnalyticsService {
     private final ShipmentRepository shipmentRepository;
     private final PartnerRepository partnerRepository;
     private final PartnerGroupRepository groupRepository;
+    private final GrowerRepository growerRepository;
 
     public List<LeaderboardDTO> getLeaderboard() {
         List<Shipment> allShipments = shipmentRepository.findAll();
@@ -140,6 +143,11 @@ public class AnalyticsService {
         List<Shipment> history = shipmentRepository.findByLocationPartnerIdOrderByProcessingDateDesc(partnerId);
         if (history.isEmpty()) return new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
         return calculateStats(history);
+    }
+
+    public PartnerStatsDTO getGrowerStats(Long growerId) {
+        List<Shipment> shipments = shipmentRepository.findByGrowerIdOrderByProcessingDateDesc(growerId);
+        return calculateStats(shipments);
     }
 
     public PartnerStatsDTO getLocationStats(Long locationId) {

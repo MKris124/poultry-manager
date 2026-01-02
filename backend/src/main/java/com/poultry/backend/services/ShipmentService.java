@@ -1,8 +1,11 @@
 package com.poultry.backend.services;
 
 import com.poultry.backend.dtos.CreateShipmentDTO;
+import com.poultry.backend.entities.Grower;
+import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.entities.Shipment;
+import com.poultry.backend.repositories.GrowerRepository;
 import com.poultry.backend.repositories.PartnerLocationRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.temporal.WeekFields;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -18,6 +22,7 @@ import java.util.List;
 public class ShipmentService {
     private final ShipmentRepository shipmentRepository;
     private final PartnerLocationRepository partnerLocationRepository;
+    private final GrowerRepository growerRepository;
 
     public Shipment createShipment(CreateShipmentDTO createShipment) {
         validateAndFixDeliveryCode(createShipment);
@@ -67,6 +72,10 @@ public class ShipmentService {
 
     public List<Shipment> getHistoryByLocation(Long locationId) {
         return shipmentRepository.findByLocationIdOrderByProcessingDateDesc(locationId);
+    }
+
+    public List<Shipment> getHistoryByGrower(Long growerId) {
+        return shipmentRepository.findByGrowerIdOrderByProcessingDateDesc(growerId);
     }
 
     public List<Shipment> getAllShipments() {

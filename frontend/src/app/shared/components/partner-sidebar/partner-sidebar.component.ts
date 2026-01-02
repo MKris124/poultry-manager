@@ -1,4 +1,3 @@
-// frontend/src/app/shared/components/partner-sidebar/partner-sidebar.component.ts
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidebarModule } from 'primeng/sidebar';

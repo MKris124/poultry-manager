@@ -13,9 +13,13 @@ export class AnalyticsService {
   getPartnerStats(partnerId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/partner/${partnerId}`);
   }
-  
+
   getLocationStats(locationId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/location/${locationId}`);
+  }
+
+  getGrowerStats(growerId: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/grower/${growerId}`);
   }
 
   getLeaderboard(): Observable<any[]> {

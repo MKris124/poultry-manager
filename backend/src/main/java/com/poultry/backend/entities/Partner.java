@@ -22,9 +22,6 @@ public class Partner {
     @Column(nullable = false)
     private String name;
 
-    @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @ToString.Exclude
-    private List<PartnerLocation> locations = new ArrayList<>();
 
     @Transient
     private Long totalQuantity;
@@ -33,4 +30,19 @@ public class Partner {
     @JoinColumn(name = "group_id")
     @JsonIgnoreProperties("members")
     private PartnerGroup group;
+
+    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "partner_growers",
+            joinColumns = @JoinColumn(name = "partner_id"),
+            inverseJoinColumns = @JoinColumn(name = "grower_id")
+    )
+    @JsonIgnoreProperties("partners")
+    @ToString.Exclude
+    private List<Grower> growers = new ArrayList<>();
+
+    @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    @JsonIgnoreProperties("partner")
+    @ToString.Exclude
+    private List<PartnerLocation> locations = new ArrayList<>();
 }

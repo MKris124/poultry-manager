@@ -22,6 +22,11 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
 
     Optional<Shipment> findByDeliveryCodeAndLocation(String deliveryCode, PartnerLocation location);
 
+    List<Shipment> findByGrowerIdOrderByProcessingDateDesc(Long growerId);
+
+    @Query("SELECT SUM(s.quantity) FROM Shipment s WHERE s.grower.id = :growerId AND s.location.partner.id = :partnerId")
+    Integer sumQuantityByGrowerAndPartner(Long growerId, Long partnerId);
+
 
     @Query("SELECT new com.poultry.backend.dtos.PartnerTotalQuantityDTO(s.location.partner.id, SUM(s.netQuantity)) " +
             "FROM Shipment s GROUP BY s.location.partner.id")

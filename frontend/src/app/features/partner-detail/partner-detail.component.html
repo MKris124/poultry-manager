@@ -144,12 +144,26 @@
                             <ng-template pTemplate="input">
                                 <input pInputText [(ngModel)]="ship.deliveryCode" (ngModelChange)="onCellEdit(ship)" class="w-full p-inputtext-sm" placeholder="001/25" [ngClass]="{'ng-invalid ng-dirty': !ship.deliveryCode}">
                             </ng-template>
+                        
                             <ng-template pTemplate="output">
-                                <div class="font-bold">{{ ship.deliveryCode }}</div>
+                                <div class="font-bold text-lg">{{ ship.deliveryCode }}</div>
+                                
                                 <span *ngIf="!ship.deliveryCode" class="text-red-500 font-bold text-sm">Kötelező!</span>
-                                <div *ngIf="partner.isGroup && ship.partner" class="text-sm text-500 mt-1 flex align-items-center" style="white-space: nowrap;">
-                                    <i class="pi pi-user mr-1 text-xs"></i> {{ ship.partner.name }}
+                            
+                                <div *ngIf="(partner.isGroup || partner.isGrower) && ship.location?.partner" 
+                                     class="text-sm text-600 mt-1 flex align-items-center" 
+                                     style="white-space: nowrap;">
+                                    <i class="pi pi-briefcase mr-1 text-xs text-primary"></i> 
+                                    <span class="font-medium">{{ ship.location.partner.name }}</span>
                                 </div>
+                            
+                                <div *ngIf="!partner.isLocation && !partner.isGroup && !partner.isGrower && ship.location" 
+                                     class="text-sm text-500 mt-1 flex align-items-center" 
+                                     style="white-space: nowrap;">
+                                    <i class="pi pi-map-marker mr-1 text-xs text-orange-500"></i> 
+                                    <span>{{ ship.location.city }}</span>
+                                </div>
+                            
                             </ng-template>
                         </p-cellEditor>
                     </td>

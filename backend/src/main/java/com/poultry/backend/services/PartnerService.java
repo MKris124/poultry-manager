@@ -5,9 +5,7 @@ import com.poultry.backend.dtos.PartnerTotalQuantityDTO;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerGroup;
 import com.poultry.backend.entities.PartnerLocation;
-import com.poultry.backend.repositories.PartnerGroupRepository;
-import com.poultry.backend.repositories.PartnerRepository;
-import com.poultry.backend.repositories.ShipmentRepository;
+import com.poultry.backend.repositories.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +23,8 @@ public class PartnerService {
     private final PartnerRepository partnerRepository;
     private final ShipmentRepository shipmentRepository;
     private final PartnerGroupRepository groupRepository;
+    private final GrowerRepository growerRepository;
+    private final PartnerLocationRepository locationRepository;
 
     public List<Partner> getAllPartners() {
         List<Partner> partners = partnerRepository.findAll();
@@ -50,10 +50,17 @@ public class PartnerService {
         if (partner.getName() == null || partner.getName().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A név nem lehet üres!");
         }
+
+        if (partner.getLocations() != null) {
+            for (PartnerLocation loc : partner.getLocations()) {
+                loc.setPartner(partner);
+            }
+        }
+
         return partnerRepository.save(partner);
     }
 
-    @Transactional // Fontos a tranzakció kezelés miatt!
+    @Transactional
     public Partner updatePartner(Long id, Partner partnerDetails) {
         Partner existingPartner = partnerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Partner nem található"));
@@ -86,6 +93,7 @@ public class PartnerService {
         return partnerRepository.save(existingPartner);
     }
 
+    @Transactional
     public void deletePartner(Long id) {
         if (!partnerRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Partner nem található");
@@ -129,7 +137,18 @@ public class PartnerService {
     @Transactional
     public void deleteAllData() {
         shipmentRepository.deleteAll();
+        locationRepository.deleteAll();
+        List<Partner> allPartners = partnerRepository.findAll();
+        for (Partner p : allPartners) {
+            p.getGrowers().clear();
+            p.setGroup(null);
+            p.getLocations().clear();
+        }
+        partnerRepository.saveAll(allPartners);
+        partnerRepository.flush();
+
         partnerRepository.deleteAll();
         groupRepository.deleteAll();
+        growerRepository.deleteAll();
     }
 }

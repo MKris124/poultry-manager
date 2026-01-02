@@ -33,6 +33,11 @@ public class AnalyticsController {
         return analyticsService.getLocationStats(id);
     }
 
+    @GetMapping("/grower/{id}")
+    public PartnerStatsDTO getGrowerStats(@PathVariable Long id) {
+        return analyticsService.getGrowerStats(id);
+    }
+
     @GetMapping("/leaderboard")
     public List<LeaderboardDTO> getLeaderboard() {
         return analyticsService.getLeaderboard();

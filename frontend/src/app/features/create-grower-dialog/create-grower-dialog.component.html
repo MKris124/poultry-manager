@@ -1,0 +1,16 @@
+<p-dialog [header]="isEditMode ? 'Nevelő Szerkesztése' : 'Új Nevelő Felvétele'" [(visible)]="visible" [modal]="true" [style]="{width: '400px'}">
+    <div class="flex flex-column gap-3 pt-2">
+        <div class="field">
+            <label for="name" class="font-bold block mb-2">Név</label>
+            <input pInputText id="name" [(ngModel)]="grower.name" class="w-full" autofocus />
+        </div>
+        <div class="field">
+            <label for="city" class="font-bold block mb-2">Település</label>
+            <input pInputText id="city" [(ngModel)]="grower.city" class="w-full" placeholder="Pl. Debrecen" />
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <p-button label="Mégse" icon="pi pi-times" (click)="visible = false" styleClass="p-button-text"></p-button>
+        <p-button label="Mentés" icon="pi pi-check" (click)="save()" [disabled]="!grower.name"></p-button>
+    </ng-template>
+</p-dialog>
