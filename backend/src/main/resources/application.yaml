@@ -1,8 +1,6 @@
 spring:
   application:
     name: poultry-management
-  profiles:
-    active: desktop
 server:
   error:
     include-message: always
