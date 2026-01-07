@@ -8,6 +8,8 @@ public class CreateShipmentDTO {
     private Long partnerId;
     private Long locationId;
 
+    private Long growerId;
+
     private String deliveryCode;
     private LocalDate deliveryDate;
     private LocalDate processingDate;

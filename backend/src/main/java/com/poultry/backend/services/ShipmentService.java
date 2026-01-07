@@ -8,6 +8,7 @@ import com.poultry.backend.entities.Shipment;
 import com.poultry.backend.repositories.GrowerRepository;
 import com.poultry.backend.repositories.PartnerLocationRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,17 +32,34 @@ public class ShipmentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A telephely (Location ID) megadása kötelező!");
         }
 
+
+
         PartnerLocation location = partnerLocationRepository.findById(createShipment.getLocationId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Telephely nem található!"));
 
         Shipment shipment = new Shipment();
         shipment.setLocation(location);
 
+        if (createShipment.getGrowerId() != null) {
+            Grower grower = growerRepository.findById(createShipment.getGrowerId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "A megadott nevelő nem található!"));
+            shipment.setGrower(grower);
+
+            Partner partner = location.getPartner();
+            if (!grower.getPartners().contains(partner)) {
+                grower.getPartners().add(partner);
+                partner.getGrowers().add(grower);
+
+                growerRepository.save(grower);
+            }
+        }
+
         mapDtoToEntity(createShipment, shipment);
 
         return shipmentRepository.save(shipment);
     }
 
+    @Transactional
     public Shipment updateShipment(Long id, CreateShipmentDTO shipmentToUpdate) {
         validateAndFixDeliveryCode(shipmentToUpdate);
         validateNumericFields(shipmentToUpdate);
@@ -49,16 +67,49 @@ public class ShipmentService {
         Shipment shipment = shipmentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nincs ilyen szállítás"));
 
+        Grower oldGrower = shipment.getGrower();
+        Partner oldPartner = shipment.getLocation().getPartner();
+
         if (shipmentToUpdate.getLocationId() != null &&
                 !shipmentToUpdate.getLocationId().equals(shipment.getLocation().getId())) {
-
             PartnerLocation newLocation = partnerLocationRepository.findById(shipmentToUpdate.getLocationId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Új telephely nem található"));
             shipment.setLocation(newLocation);
         }
 
-        mapDtoToEntity(shipmentToUpdate, shipment);
+        if (shipmentToUpdate.getGrowerId() != null) {
+            if (oldGrower == null || !shipmentToUpdate.getGrowerId().equals(oldGrower.getId())) {
+                Grower newGrower = growerRepository.findById(shipmentToUpdate.getGrowerId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "A megadott nevelő nem található!"));
+                shipment.setGrower(newGrower);
+            }
+        }
 
+        if (shipment.getGrower() != null) {
+            Grower currentGrower = shipment.getGrower();
+            Partner currentPartner = shipment.getLocation().getPartner();
+
+            if (!currentGrower.getPartners().contains(currentPartner)) {
+                currentGrower.getPartners().add(currentPartner);
+                currentPartner.getGrowers().add(currentGrower);
+                growerRepository.save(currentGrower);
+            }
+        }
+
+        if (oldGrower != null) {
+
+            long count = shipmentRepository.countByGrowerAndLocation_Partner(oldGrower, oldPartner);
+
+            if (count <= 1) {
+                if (oldGrower.getPartners().contains(oldPartner)) {
+                    oldGrower.getPartners().remove(oldPartner);
+                    oldPartner.getGrowers().remove(oldGrower);
+                    growerRepository.save(oldGrower);
+                }
+            }
+        }
+
+        mapDtoToEntity(shipmentToUpdate, shipment);
         return shipmentRepository.save(shipment);
     }
 

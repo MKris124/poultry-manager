@@ -1,4 +1,5 @@
-<div (click)="$event.stopPropagation()">
+
+<div (click)="$event.stopPropagation()" >
     
     <div *ngIf="selectedStats || shipments.length" class="grid mb-5">
         <div class="col-6 md:col-3">
@@ -51,12 +52,14 @@
                 <p-selectButton [options]="rowOptions" 
                                 [(ngModel)]="rows" 
                                 optionLabel="label" 
+                                (onChange)="saveSettings()"
                                 optionValue="value"
                                 styleClass="p-button-sm">
                 </p-selectButton>
 
             <p-multiSelect [options]="cols" 
-                           [(ngModel)]="selectedColumns" 
+                           [(ngModel)]="selectedColumns"
+                           (onChange)="saveSettings()"
                            optionLabel="header"
                            selectedItemsLabel="{0} oszlop megjelenítve" 
                            [style]="{minWidth: '150px'}"
@@ -107,6 +110,7 @@
             
             <ng-template pTemplate="header">
                 <tr>
+                    <th *ngIf="isColVisible('growerId')" style="min-width:150px" pSortableColumn="growerId">Nevelő <p-sortIcon field="growerId"></p-sortIcon></th>
                     <th *ngIf="isColVisible('deliveryCode')" style="min-width:120px" pSortableColumn="deliveryCode">Kód <p-sortIcon field="deliveryCode"></p-sortIcon></th>
                     <th *ngIf="isColVisible('deliveryDate')" style="min-width:110px" pSortableColumn="deliveryDate">Száll. dátum <p-sortIcon field="deliveryDate"></p-sortIcon></th>
                     <th *ngIf="isColVisible('processingDate')" style="min-width:110px" pSortableColumn="processingDate">Vágás dátum <p-sortIcon field="processingDate"></p-sortIcon></th>
@@ -139,6 +143,37 @@
 
             <ng-template pTemplate="body" let-ship let-ri="rowIndex">
                 <tr>
+                    <td *ngIf="isColVisible('growerId')" pEditableColumn [pEditableColumnDisabled]="readOnly">
+                        <p-cellEditor>
+                            <ng-template pTemplate="input">
+                                <p-dropdown [options]="growers" 
+                                            [(ngModel)]="ship.growerId" 
+                                            optionLabel="name" 
+                                            optionValue="id"
+                                            [style]="{'width':'100%'}"
+                                            placeholder="Válassz nevelőt..."
+                                            (onChange)="onCellEdit(ship)"
+                                            appendTo="body"
+                                            [filter]="true" 
+                                            filterBy="name"
+                                            scrollHeight="200px" 
+                                            [autoDisplayFirst]="false"
+                                            [ngClass]="{'ng-invalid ng-dirty': !ship.growerId}">
+                                </p-dropdown>
+                            </ng-template>
+                        
+                            <ng-template pTemplate="output">
+                                <span *ngIf="ship.growerId" class="font-bold text-700">
+                                    {{ getGrowerName(ship.growerId) }}
+                                </span>
+                                <span *ngIf="!ship.growerId && ship.grower" class="font-bold text-700">
+                                     {{ ship.grower.name }} </span>
+                                <span *ngIf="!ship.growerId && !ship.grower" class="text-red-500 font-bold text-sm">
+                                    Kötelező!
+                                </span>
+                            </ng-template>
+                        </p-cellEditor>
+                    </td>
                     <td *ngIf="isColVisible('deliveryCode')" pEditableColumn [pEditableColumnDisabled]="readOnly">
                         <p-cellEditor>
                             <ng-template pTemplate="input">

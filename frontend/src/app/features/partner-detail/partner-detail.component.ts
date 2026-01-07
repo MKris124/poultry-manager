@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -17,6 +17,8 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SelectButtonModule } from 'primeng/selectbutton';
+import { DropdownModule } from 'primeng/dropdown';
+import { GrowerService } from '../../services/grower.service';
 
 @Component({
   selector: 'app-partner-detail',
@@ -24,16 +26,17 @@ import { SelectButtonModule } from 'primeng/selectbutton';
   imports: [
     CommonModule, FormsModule, TableModule, ButtonModule, 
     InputTextModule, ToastModule, TooltipModule, MultiSelectModule,
-    ConfirmPopupModule, TrendChartComponent, SelectButtonModule
+    ConfirmPopupModule, TrendChartComponent, SelectButtonModule, DropdownModule
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './partner-detail.component.html'
 })
-export class PartnerDetailComponent implements OnChanges {
+export class PartnerDetailComponent implements OnChanges, OnInit {
   @Input() partner: any;
   @Input() readOnly: boolean = false;
 
   shipments: any[] = [];
+  growers: any[] = [];
   clonedShipments: { [s: string]: any } = {};
   selectedStats: any = null;
   isSaving: boolean = false;
@@ -42,6 +45,7 @@ export class PartnerDetailComponent implements OnChanges {
   newRowsSet: Set<any> = new Set();
 
   cols: any[] = [
+    { field: 'growerId', header: 'Nevelő' },
     { field: 'deliveryCode', header: 'Kód' },
     { field: 'deliveryDate', header: 'Beszállítás' },
     { field: 'processingWeek', header: 'Hét' },
@@ -62,7 +66,7 @@ export class PartnerDetailComponent implements OnChanges {
     { field: 'mortalityRate', header: 'Elhullás %' }
   ];
 
-  rows: number = 5;
+  rows: number = 0;
 
   rowOptions: any[] = [
       { label: '5', value: 5 },
@@ -77,8 +81,11 @@ export class PartnerDetailComponent implements OnChanges {
     private shipmentService: ShipmentService,
     private analyticsService: AnalyticsService,
     private messageService: MessageService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private GrowerService: GrowerService
   ) {}
+    
+  
 
   get selectedColumns(): any[] { return this._selectedColumns; }
   
@@ -91,12 +98,43 @@ export class PartnerDetailComponent implements OnChanges {
       return this.dirtyRowIds.size > 0 || this.newRowsSet.size > 0; 
   }
 
+  ngOnInit(): void {
+        const savedRows = localStorage.getItem('poultry_rows');
+      if (savedRows) {
+          this.rows = +savedRows; 
+      }
+
+      const savedCols = localStorage.getItem('poultry_cols');
+      if (savedCols) {
+          const savedFields = JSON.parse(savedCols);
+          this.selectedColumns = this.cols.filter(c => savedFields.includes(c.field));
+      } else {
+          this.selectedColumns = this.cols;
+      }
+    }
+
   ngOnChanges(changes: SimpleChanges) {
     if (changes['partner'] && this.partner) {
-      this.selectedColumns = this.cols; 
+
+      if (!this._selectedColumns || this._selectedColumns.length === 0) {
+           const savedCols = localStorage.getItem('poultry_cols');
+           if (savedCols) {
+               const savedFields = JSON.parse(savedCols);
+               this.selectedColumns = this.cols.filter(c => savedFields.includes(c.field));
+           } else {
+               this.selectedColumns = this.cols; 
+           }
+      }
       this.loadData();
+      this.loadGrowers();
     }
   }
+
+  loadGrowers() {
+      this.GrowerService.getAllGrowers().subscribe(data => {
+          this.growers = data;
+      });
+    }
 
   loadData() {
     this.shipments = [];
@@ -137,7 +175,8 @@ export class PartnerDetailComponent implements OnChanges {
         return { 
             ...ship, 
             avgWeight: avg,
-            locationId: ship.location?.id
+            locationId: ship.location?.id,
+            growerId: ship.grower?.id
         };
       });
       this.shipments.forEach(s => this.clonedShipments[s.id] = { ...s });
@@ -176,7 +215,7 @@ export class PartnerDetailComponent implements OnChanges {
         this.messageService.add({
             severity: 'error', 
             summary: 'Hiányzó adat', 
-            detail: 'A Kód mező kitöltése kötelező minden sornál!'
+            detail: 'A Kód és a Nevelő mező kitöltése kötelező minden sornál!'
         });
         return; 
     }
@@ -198,6 +237,7 @@ export class PartnerDetailComponent implements OnChanges {
             ...ship, 
             locationId: this.partner.isLocation ? this.partner.locationId : ship.locationId,
             partnerId: this.partner.isLocation ? this.partner.originalPartnerId : (ship.partnerId || this.partner.id),
+            growerId: ship.growerId,
             
             deliveryDate: formattedDate,
             netQuantity: currentNetQty,
@@ -345,6 +385,18 @@ export class PartnerDetailComponent implements OnChanges {
 
   trackByFn(index: number, item: any) {
       return item.id; 
+  }
+
+  saveSettings() {
+      localStorage.setItem('poultry_rows', this.rows.toString());
+
+      const colFields = this.selectedColumns.map(c => c.field);
+      localStorage.setItem('poultry_cols', JSON.stringify(colFields));
+  }
+
+  getGrowerName(id: number): string {
+      const g = this.growers.find(x => x.id === id);
+      return g ? g.name : '-';
   }
 
   getLiverColor(val: number): string { return !val ? '' : (val >= 0.6 ? 'text-green-500' : 'text-yellow-500'); }

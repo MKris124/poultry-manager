@@ -1,6 +1,8 @@
 package com.poultry.backend.repositories;
 
 import com.poultry.backend.dtos.PartnerTotalQuantityDTO;
+import com.poultry.backend.entities.Grower;
+import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.entities.Shipment;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,7 +18,7 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
 
     List<Shipment> findByLocationPartnerIdInOrderByProcessingDateDesc(List<Long> partnerIds);
 
-    Optional<Shipment> findByDeliveryCodeAndLocationPartnerId(String deliveryCode, Long partnerId);
+    long countByGrowerAndLocation_Partner(Grower grower, Partner partner);
 
     List<Shipment> findByLocationIdOrderByProcessingDateDesc(Long locationId);
 
