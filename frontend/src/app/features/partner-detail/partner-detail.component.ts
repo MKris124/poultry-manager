@@ -66,7 +66,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     { field: 'mortalityRate', header: 'Elhullás %' }
   ];
 
-  rows: number = 0;
+  rows: number = 5;
 
   rowOptions: any[] = [
       { label: '5', value: 5 },
