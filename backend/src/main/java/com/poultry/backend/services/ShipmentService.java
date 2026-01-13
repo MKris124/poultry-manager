@@ -10,6 +10,7 @@ import com.poultry.backend.repositories.PartnerLocationRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,6 +25,7 @@ public class ShipmentService {
     private final PartnerLocationRepository partnerLocationRepository;
     private final GrowerRepository growerRepository;
 
+    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
     public Shipment createShipment(CreateShipmentDTO createShipment) {
         validateAndFixDeliveryCode(createShipment);
 
@@ -55,6 +57,7 @@ public class ShipmentService {
     }
 
     @Transactional
+    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
     public Shipment updateShipment(Long id, CreateShipmentDTO shipmentToUpdate) {
         validateAndFixDeliveryCode(shipmentToUpdate);
 
@@ -145,6 +148,8 @@ public class ShipmentService {
     public List<Shipment> getHistoryByGrower(Long growerId) {
         return shipmentRepository.findByGrowerIdOrderByProcessingDateDesc(growerId);
     }
+
+    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
     public void deleteShipment(Long id) {
         shipmentRepository.deleteById(id);
     }

@@ -8,6 +8,7 @@ import com.poultry.backend.entities.PartnerLocation;
 import com.poultry.backend.repositories.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,7 +29,6 @@ public class PartnerService {
 
     public List<Partner> getAllPartners() {
         List<Partner> partners = partnerRepository.findAll();
-        // Itt már a meglévő DTO-t használja a repository, ami jó.
         List<PartnerTotalQuantityDTO> totals = shipmentRepository.getTotalQuantitiesByPartner();
 
         Map<Long, Long> quantityMap = totals.stream()
@@ -127,6 +127,7 @@ public class PartnerService {
     }
 
     @Transactional
+    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
     public void deleteAllData() {
         shipmentRepository.deleteAllInBatch();
         locationRepository.deleteAllInBatch();

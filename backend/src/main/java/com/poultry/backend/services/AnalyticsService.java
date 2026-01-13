@@ -9,6 +9,7 @@ import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
 import com.poultry.backend.repositories.IStatsProjection;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -22,6 +23,7 @@ public class AnalyticsService {
     private final PartnerGroupRepository groupRepository;
     private final ScoringService scoringService;
 
+    @Cacheable("leaderboard")
     public List<LeaderboardDTO> getLeaderboard() {
         Map<Long, PartnerStatsDTO> statsMap = fetchAllStatsAsMap();
 
@@ -123,14 +125,17 @@ public class AnalyticsService {
         return stats.getAvgLiverWeight() > 0 || stats.getAvgKosherPercent() > 0;
     }
 
+    @Cacheable(value = "partnerStats", key = "#partnerId")
     public PartnerStatsDTO getPartnerStats(Long partnerId) {
         return shipmentRepository.getStatsByPartnerId(partnerId);
     }
 
+    @Cacheable(value = "growerStats", key = "#growerId")
     public PartnerStatsDTO getGrowerStats(Long growerId) {
         return shipmentRepository.getStatsByGrowerId(growerId);
     }
 
+    @Cacheable(value = "locationStats", key = "#locationId")
     public PartnerStatsDTO getLocationStats(Long locationId) {
         return shipmentRepository.getStatsByLocationId(locationId);
     }

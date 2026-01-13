@@ -13,6 +13,7 @@ import com.poultry.backend.utils.ExcelHelper;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,6 +37,7 @@ public class ShipmentImportService {
     private static final Pattern GROWER_PATTERN = Pattern.compile("^(.*)\\s+([A-ZÁÉÍÓÖŐÚÜŰ]+)$");
 
     @Transactional
+    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
     public ImportResult importExcel(MultipartFile file) throws IOException {
         ImportResult result = new ImportResult();
 
