@@ -210,3 +210,76 @@ app-root {
     display: block;
     min-height: 100vh;
 }
+
+.custom-tabs .p-tabview-nav {
+    background: transparent !important;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.custom-tabs .p-tabview-nav li .p-tabview-nav-link {
+    background: transparent !important;
+    border: none;
+    border-bottom: 2px solid transparent; /* Alapból átlátszó aláhúzás */
+    color: #6b7280;
+    font-weight: 600;
+    transition: all 0.2s;
+    margin-bottom: -1px; /* Hogy rámenjen a vonalra */
+}
+
+/* Aktív fül */
+.custom-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: transparent !important;
+    border-bottom: 2px solid #3b82f6; /* Kék aláhúzás */
+    color: #3b82f6;
+}
+
+/* Hover (ráhúzás) */
+.custom-tabs .p-tabview-nav li:not(.p-highlight) .p-tabview-nav-link:hover {
+    border-bottom: 2px solid #d1d5db;
+    color: #374151;
+}
+
+/* Tartalom doboz (Panel) */
+.custom-tabs .p-tabview-panels {
+    background: transparent !important;
+    padding: 1.5rem 0 0 0 !important;
+    border: none;
+}
+
+/* SÖTÉT MÓD - TabView */
+:root.my-app-dark .custom-tabs .p-tabview-nav {
+    border-bottom: 1px solid var(--p-surface-border);
+}
+
+:root.my-app-dark .custom-tabs .p-tabview-nav li .p-tabview-nav-link {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+:root.my-app-dark .custom-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    border-bottom: 2px solid #60a5fa; /* Világosabb kék sötét módban */
+    color: #60a5fa;
+}
+
+:root.my-app-dark .custom-tabs .p-tabview-nav li:not(.p-highlight) .p-tabview-nav-link:hover {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* CHART SZÍNEK (CSS változók a grafikonhoz) */
+:root {
+    --blue-500: #3b82f6;
+    --green-500: #22c55e;
+    --orange-500: #f97316;
+    --text-color: #4b5563;
+    --text-color-secondary: #9ca3af;
+    --surface-border: #e5e7eb;
+}
+
+:root.my-app-dark {
+    --blue-500: #60a5fa;
+    --green-500: #4ade80;
+    --orange-500: #fb923c;
+    --text-color: rgba(255, 255, 255, 0.87);
+    --text-color-secondary: rgba(255, 255, 255, 0.6);
+    --surface-border: rgba(255, 255, 255, 0.15);
+}

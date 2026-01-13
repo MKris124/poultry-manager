@@ -19,6 +19,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { DropdownModule } from 'primeng/dropdown';
 import { GrowerService } from '../../services/grower.service';
+import { TabViewModule } from 'primeng/tabview';
+import { PartnerStatsChartComponent } from '../partner-stats-chart/partner-stats-chart.component';
 
 @Component({
   selector: 'app-partner-detail',
@@ -26,7 +28,8 @@ import { GrowerService } from '../../services/grower.service';
   imports: [
     CommonModule, FormsModule, TableModule, ButtonModule, 
     InputTextModule, ToastModule, TooltipModule, MultiSelectModule,
-    ConfirmPopupModule, TrendChartComponent, SelectButtonModule, DropdownModule
+    ConfirmPopupModule, TrendChartComponent, SelectButtonModule, DropdownModule,
+    TabViewModule, PartnerStatsChartComponent
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './partner-detail.component.html'
