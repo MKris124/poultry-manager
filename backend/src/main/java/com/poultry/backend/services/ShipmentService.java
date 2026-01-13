@@ -125,14 +125,10 @@ public class ShipmentService {
         String[] parts = code.split("/");
 
         if (parts.length != 2) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hibás formátum! Helyes: Sorszám/Év (pl. 001/25)");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Hibás formátum! Helyes: Sorszám/Év (pl. 001/25)");
         }
-        if (dto.getDeliveryDate() != null) {
-            String yearSuffix = String.valueOf(dto.getDeliveryDate().getYear()).substring(2);
-            if (!parts[1].equals(yearSuffix)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A kód évének nem egyezik a dátummal!");
-            }
-        }
+
         dto.setDeliveryCode(code);
     }
 

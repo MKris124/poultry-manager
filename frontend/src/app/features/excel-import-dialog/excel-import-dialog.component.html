@@ -1,11 +1,13 @@
-<p-dialog header="Excel Importálás" 
-          [(visible)]="visible" 
-          [modal]="true" 
-          [style]="{width: '500px'}"
-          [draggable]="false" 
-          [resizable]="false">
+<p-dialog 
+    header="Excel Importálás" 
+    [(visible)]="visible" 
+    [modal]="true" 
+    [style]="{width: '90vw', maxWidth: '1200px'}"
+    [draggable]="false" 
+    [resizable]="false"
+    (onHide)="resetState()">
     
-    <div class="p-3">
+    <div *ngIf="!previewRows" class="p-3">
         <p class="mb-4 text-500 line-height-3">
             Töltsd fel a heti vágási jelentést (<b>.xlsx</b>). <br>
             A rendszer automatikusan felismeri a partnereket, vagy létrehozza őket, ha újak.
@@ -23,7 +25,8 @@
             chooseLabel="Excel Fájl Kiválasztása"
             uploadLabel="Feltöltés"
             cancelLabel="Mégse"
-            styleClass="w-full">
+            styleClass="w-full"
+            [disabled]="isUploading">
             
             <ng-template pTemplate="content">
                 <div *ngIf="isUploading" class="text-center p-4">
@@ -34,12 +37,73 @@
                 <div *ngIf="!isUploading" 
                      class="text-center p-5 cursor-pointer border-2 border-dashed surface-border border-round hover:surface-hover transition-colors transition-duration-200" 
                      (click)="fileUpload.choose()">
-                    
                     <i class="pi pi-cloud-upload text-6xl text-400 mb-3"></i>
                     <p class="m-0 text-700 font-medium">Húzd ide a fájlt vagy kattints a feltöltéshez.</p>
                 </div>
             </ng-template>
-
         </p-fileUpload>
+    </div>
+
+    <div *ngIf="previewRows && !isUploading">
+        <div class="flex justify-content-between align-items-center mb-3 px-3">
+            <h3 class="m-0">Előnézet</h3>
+            <div>
+                <span class="mr-3 font-bold text-green-600">Helyes: {{ getValidCount() }} db</span>
+                <span class="font-bold text-red-600">Hibás: {{ previewRows.length - getValidCount() }} db</span>
+            </div>
+        </div>
+
+        <p-table 
+            [value]="previewRows" 
+            [scrollable]="true" 
+            scrollHeight="400px" 
+            styleClass="p-datatable-sm p-datatable-gridlines">
+            
+            <ng-template pTemplate="header">
+                <tr>
+                    <th style="width:50px">Sor</th>
+                    <th>Nevelő</th>
+                    <th>Partner</th>
+                    <th>Kód</th>
+                    <th>Város</th>
+                    <th>Dátum</th>
+                    <th>Darab</th>
+                    <th>Státusz / Hiba</th>
+                </tr>
+            </ng-template>
+            
+            <ng-template pTemplate="body" let-row>
+                <tr>
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ row.growerName }}</td>
+                    <td>{{ row.partnerName }}</td>
+                    <td>{{ row.deliveryCode }}</td>
+                    <td>{{ row.locationCity }}</td>
+                    <td>{{ row.shipmentData.deliveryDate | date:'yyyy.MM.dd' }}</td>
+                    <td>{{ row.shipmentData.quantity }}</td>
+                    <td>
+                        <div *ngIf="row.valid">
+                            <i class="pi pi-check-circle text-green-600"></i> OK
+                        </div>
+                        <div *ngIf="!row.valid">
+                            <div *ngFor="let err of row.errors" class="text-red-600 text-sm font-bold">
+                                <i class="pi pi-times-circle"></i> {{ err }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+
+        <div class="flex justify-content-end gap-2 mt-4 px-3 pb-3">
+            <button pButton label="Vissza" icon="pi pi-arrow-left" class="p-button-secondary" (click)="cancelPreview()"></button>
+            <button pButton 
+                label="Mentés ({{ getValidCount() }} db)" 
+                icon="pi pi-check" 
+                class="p-button-success" 
+                (click)="saveValidRows()" 
+                [disabled]="getValidCount() === 0">
+            </button>
+        </div>
     </div>
 </p-dialog>

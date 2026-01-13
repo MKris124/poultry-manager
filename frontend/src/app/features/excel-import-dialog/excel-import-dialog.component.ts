@@ -1,30 +1,47 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DialogModule } from 'primeng/dialog';
-import { FileUploadModule } from 'primeng/fileupload';
-import { MessageService } from 'primeng/api';
-import { ShipmentService } from '../../services/shipment.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { DialogModule } from 'primeng/dialog';
+import { FileUploadModule, FileUpload } from 'primeng/fileupload';
+import { MessageService } from 'primeng/api';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+
+import { ImportService } from '../../services/import.service';
 
 @Component({
   selector: 'app-excel-import-dialog',
   standalone: true,
-  imports: [CommonModule, DialogModule, FileUploadModule],
+  imports: [CommonModule, DialogModule, FileUploadModule, TableModule, ButtonModule],
   templateUrl: './excel-import-dialog.component.html',
+  
 })
 export class ExcelImportDialogComponent {
   @Output() onClosed = new EventEmitter<void>();
+  @ViewChild('fileUpload') fileUpload!: FileUpload;
+
   visible: boolean = false;
   isUploading: boolean = false;
+  
+
+  previewRows: any[] | null = null;
 
   constructor(
     private messageService: MessageService,
-    private shipmentService: ShipmentService
+    private importService: ImportService
   ) {}
 
   show() {
     this.visible = true;
+    this.resetState();
+  }
+
+  resetState() {
     this.isUploading = false;
+    this.previewRows = null;
+    if (this.fileUpload) {
+      this.fileUpload.clear();
+    }
   }
 
   uploadHandler(event: any) {
@@ -33,47 +50,67 @@ export class ExcelImportDialogComponent {
     this.isUploading = true;
     const file = event.files[0];
 
-    this.shipmentService.uploadExcel(file).subscribe({
-      next: (response: any) => {
+    this.importService.previewExcel(file).subscribe({
+      next: (response: any[]) => {
         this.isUploading = false;
-        this.visible = false; 
+        this.previewRows = response;
         
-        if (response.failedCount > 0) {
-            const severity = response.successCount > 0 ? 'warn' : 'error';
-            const summary = response.successCount > 0 ? 'Részleges siker' : 'Importálási hiba';
-            
-            let errorDetail = `Sikerült: ${response.successCount}, Hibás: ${response.failedCount}\n`;
-            
-            const errorsToShow = response.errorMessages.slice(0, 5);
-            errorDetail += errorsToShow.join('\n');
-            
-            if (response.errorMessages.length > 5) {
-                errorDetail += `\n...és további ${response.errorMessages.length - 5} hiba.`;
-            }
+        if (this.previewRows.length === 0) {
+           this.messageService.add({severity: 'warn', summary: 'Figyelem', detail: 'A fájl üres vagy nem tartalmaz adatot.'});
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isUploading = false;
+        console.error(err);
+        this.messageService.add({severity: 'error', summary: 'Hiba', detail: 'Hiba a fájl feldolgozásakor (Előnézet).'});
+        this.fileUpload.clear();
+      }
+    });
+  }
 
-            this.messageService.add({
-                severity: severity, 
-                summary: summary, 
-                detail: errorDetail, 
-                life: 10000 
-            });
-        } else {
+  saveValidRows() {
+    if (!this.previewRows) return;
+
+    const validData = this.previewRows
+        .filter((row: any) => row.valid)
+        .map((row: any) => row.shipmentData);
+
+    if (validData.length === 0) {
+        this.messageService.add({severity: 'warn', summary: 'Nincs adat', detail: 'Nincs menthető (hibátlan) sor.'});
+        return;
+    }
+
+    this.isUploading = true;
+
+    this.importService.saveImportedRows(validData).subscribe({
+        next: (response: any) => {
+            this.isUploading = false;
+            this.visible = false;
+            
             this.messageService.add({
                 severity: 'success', 
                 summary: 'Siker', 
                 detail: `${response.successCount} sor sikeresen importálva!`
             });
-        }
 
-        this.onClosed.emit();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isUploading = false;
-        console.error(err);
-        
-        const msg = err.error?.message || 'Kritikus szerver hiba történt.';
-        this.messageService.add({severity: 'error', summary: 'Hiba', detail: msg});
-      }
+            this.onClosed.emit();
+        },
+        error: (err: HttpErrorResponse) => {
+            this.isUploading = false;
+            console.error(err);
+            const msg = err.error?.message || 'Hiba a mentés során.';
+            this.messageService.add({severity: 'error', summary: 'Hiba', detail: msg});
+        }
     });
   }
+
+  cancelPreview() {
+    this.resetState();
+  }
+
+  getValidCount(): number {
+    return this.previewRows ? this.previewRows.filter((r: any) => r.valid).length : 0;
+  }
+
+  
 }

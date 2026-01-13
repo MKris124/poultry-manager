@@ -1,17 +1,18 @@
 package com.poultry.backend.services;
 
-import com.poultry.backend.dtos.ImportResult;
+import com.poultry.backend.dtos.CreateShipmentDTO;
+import com.poultry.backend.dtos.ImportRowDTO;
 import com.poultry.backend.entities.Grower;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerLocation;
-import com.poultry.backend.entities.Shipment;
 import com.poultry.backend.repositories.GrowerRepository;
 import com.poultry.backend.repositories.PartnerLocationRepository;
 import com.poultry.backend.repositories.PartnerRepository;
-import com.poultry.backend.repositories.ShipmentRepository;
 import com.poultry.backend.utils.ExcelHelper;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -28,180 +29,253 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ShipmentImportService {
 
+    private final ShipmentService shipmentService;
     private final PartnerRepository partnerRepository;
-    private final ShipmentRepository shipmentRepository;
-    private final PartnerLocationRepository partnerLocationRepository;
     private final GrowerRepository growerRepository;
+    private final PartnerLocationRepository locationRepository;
 
     private static final Pattern NAME_CODE_PATTERN = Pattern.compile("^(.*)\\s+(\\d+)/(\\d+)/(\\d+)$");
-    private static final Pattern GROWER_PATTERN = Pattern.compile("^(.*)\\s+([A-ZÁÉÍÓÖŐÚÜŰ]+)$");
+    private static final Pattern CITY_EXTRACTION_PATTERN = Pattern.compile("^(.*?)\\s+([A-ZÁÉÍÓÖŐÚÜŰ]{2,})$");
+    private static final Pattern FORBIDDEN_CHARS_PATTERN = Pattern.compile("[0-9()]");
 
-    @Transactional
-    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
-    public ImportResult importExcel(MultipartFile file) throws IOException {
-        ImportResult result = new ImportResult();
+    public List<ImportRowDTO> previewExcel(MultipartFile file) throws IOException {
+        List<ImportRowDTO> previewRows = new ArrayList<>();
+
+        Map<String, Grower> growerCache = loadGrowerCache();
+        Map<Long, Partner> partnerCache = loadPartnerCache();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
-            List<Shipment> shipmentsToSave = new ArrayList<>();
-
-            Map<String, Grower> growerCache = growerRepository.findAll().stream()
-                    .collect(Collectors.toMap(g -> g.getName() + "|" + (g.getCity() == null ? "" : g.getCity()), g -> g));
-
-            Map<Long, Partner> partnerCache = partnerRepository.findAll().stream()
-                    .collect(Collectors.toMap(Partner::getId, p -> p));
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                try {
-                    Shipment shipment = processRow(row, growerCache, partnerCache);
-                    if (shipment != null) {
-                        shipmentsToSave.add(shipment);
-                        result.incrementSuccess();
-                    }
-                } catch (Exception e) {
-                    result.addError(i + 1, e.getMessage());
+
+                if (ExcelHelper.getCellString(row, 0).isEmpty() && ExcelHelper.getCellString(row, 1).isEmpty()) {
+                    continue;
                 }
+
+                ImportRowDTO rowDTO = parseRowForPreview(row, i + 1, growerCache, partnerCache);
+                previewRows.add(rowDTO);
             }
-            shipmentRepository.saveAll(shipmentsToSave);
         }
-        return result;
+        return previewRows;
     }
 
-    private Shipment processRow(Row row, Map<String, Grower> growerCache, Map<Long, Partner> partnerCache) throws Exception {
-        String rawGrowerData = ExcelHelper.getCellString(row, 0);
-        Grower grower = getCachedOrCreateGrower(rawGrowerData, growerCache);
+    @Transactional
+    @CacheEvict(value = {"leaderboard", "partnerStats", "growerStats", "locationStats"}, allEntries = true)
+    public int saveImportedRows(List<CreateShipmentDTO> dtos) {
+        int savedCount = 0;
 
-        String rawNameCode = ExcelHelper.getCellString(row, 1);
-        if (rawNameCode == null || rawNameCode.trim().isEmpty()) return null;
+        Map<String, Grower> growerCache = loadGrowerCache();
+        Map<Long, Partner> partnerCache = loadPartnerCache();
 
-        Matcher matcher = NAME_CODE_PATTERN.matcher(rawNameCode.trim());
-        if (!matcher.find()) {
-            throw new IllegalArgumentException("Hibás Név/Kód formátum a B oszlopban: '" + rawNameCode + "'");
-        }
+        for (CreateShipmentDTO dto : dtos) {
+            resolveGrower(dto, growerCache);
 
-        String partnerName = matcher.group(1).trim();
-        Long partnerId = Long.parseLong(matcher.group(2));
-        String seqNum = matcher.group(3);
-        String year = matcher.group(4);
+            resolvePartnerAndLocation(dto, partnerCache);
 
-        String city = ExcelHelper.getCellString(row, 2);
-        String county = ExcelHelper.getCellString(row, 3);
-
-        Partner partner = getCachedOrCreatePartner(partnerId, partnerName, grower, partnerCache);
-        PartnerLocation location = getOrCreateLocation(partner, city, county);
-
-        String cleanDeliveryCode = seqNum + "/" + year;
-
-        Shipment shipment = shipmentRepository.findByDeliveryCodeAndLocation(cleanDeliveryCode, location)
-                .orElse(new Shipment());
-
-        shipment.setGrower(grower);
-        shipment.setLocation(location);
-        shipment.setDeliveryCode(cleanDeliveryCode);
-
-        fillShipmentData(shipment, row);
-
-        return shipment;
-    }
-
-    private Grower getCachedOrCreateGrower(String rawData, Map<String, Grower> cache) {
-        if (rawData == null || rawData.trim().isEmpty()) return null;
-
-        String trimmed = rawData.trim();
-        String name = trimmed;
-        String city = "";
-
-        Matcher m = GROWER_PATTERN.matcher(trimmed);
-        if (m.find()) {
-            name = m.group(1).trim();
-            city = m.group(2).trim();
-        }
-
-        String key = name + "|" + city;
-        if (cache.containsKey(key)) return cache.get(key);
-
-        Grower newG = new Grower();
-        newG.setName(name);
-        newG.setCity(city);
-        newG = growerRepository.save(newG);
-        cache.put(key, newG);
-        return newG;
-    }
-
-    private Partner getCachedOrCreatePartner(Long id, String name, Grower grower, Map<Long, Partner> cache) {
-        Partner p;
-        if (cache.containsKey(id)) {
-            p = cache.get(id);
-            if (grower != null) {
-                boolean linked = p.getGrowers().stream().anyMatch(g -> g.getId().equals(grower.getId()));
-                if (!linked) {
-                    p.getGrowers().add(grower);
-                    p = partnerRepository.save(p);
-                    cache.put(id, p);
-                }
+            if (dto.getLocationId() != null) {
+                shipmentService.createShipment(dto);
+                savedCount++;
             }
-        } else {
-            p = new Partner();
-            p.setId(id);
-            p.setName(name);
-            if (grower != null) p.getGrowers().add(grower);
-            p = partnerRepository.save(p);
-            cache.put(id, p);
         }
-        return p;
+        return savedCount;
     }
 
-    private PartnerLocation getOrCreateLocation(Partner partner, String city, String county) {
-        String finalCity = (city == null || city.trim().isEmpty()) ? "Ismeretlen" : city;
 
-        return partner.getLocations().stream()
-                .filter(l -> l.getCity().equalsIgnoreCase(finalCity))
-                .findFirst()
-                .map(loc -> {
-                    if (county != null && !county.equals(loc.getCounty())) {
-                        loc.setCounty(county);
-                        return partnerLocationRepository.save(loc);
-                    }
-                    return loc;
-                })
-                .orElseGet(() -> {
-                    PartnerLocation newLoc = new PartnerLocation();
-                    newLoc.setPartner(partner);
-                    newLoc.setCity(finalCity);
-                    newLoc.setCounty(county);
-                    partner.getLocations().add(newLoc);
-                    return partnerLocationRepository.save(newLoc);
-                });
-    }
+    private ImportRowDTO parseRowForPreview(Row row, int rowNum, Map<String, Grower> growerCache, Map<Long, Partner> partnerCache) {
+        ImportRowDTO dto = new ImportRowDTO();
+        dto.setRowNumber(rowNum);
+        dto.setValid(true);
+        CreateShipmentDTO shipmentData = new CreateShipmentDTO();
+        dto.setShipmentData(shipmentData);
 
-    private void fillShipmentData(Shipment shipment, Row row) {
         try {
-            shipment.setDeliveryDate(ExcelHelper.getCellDate(row, 4));
-            shipment.setQuantity((int) ExcelHelper.getCellNum(row, 5));
-            shipment.setTotalWeight(ExcelHelper.getCellNum(row, 6));
-            shipment.setProcessingWeek((int) ExcelHelper.getCellNum(row, 8));
-            shipment.setProcessingDate(ExcelHelper.getCellDate(row, 9));
+            String rawGrowerData = ExcelHelper.getCellString(row, 0);
+            dto.setGrowerName(rawGrowerData);
 
-            double netWeight = ExcelHelper.getCellNum(row, 11);
-            double transMortKg = ExcelHelper.getCellNum(row, 14);
-            if (netWeight == 0.0 && shipment.getTotalWeight() > 0) {
-                netWeight = shipment.getTotalWeight() - transMortKg;
+            if (rawGrowerData != null && !rawGrowerData.trim().isEmpty()) {
+                String trimmed = rawGrowerData.trim();
+
+                if (FORBIDDEN_CHARS_PATTERN.matcher(trimmed).find()) {
+                    dto.addError("Hibás Nevelő formátum! Helyes pl: 'Példa Péter PÉLDAVÁROS");
+                } else {
+                    Matcher m = CITY_EXTRACTION_PATTERN.matcher(trimmed);
+
+                    String gName;
+                    String gCity = "";
+
+                    if (m.find()) {
+                        gName = m.group(1).trim();
+                        gCity = m.group(2).trim();
+                    } else {
+                        gName = trimmed;
+                    }
+
+                    shipmentData.setTempGrowerName(gName);
+                    shipmentData.setTempGrowerCity(gCity);
+
+                    String key = gName + "|" + gCity;
+                    if (growerCache.containsKey(key)) {
+                        shipmentData.setGrowerId(growerCache.get(key).getId());
+                    }
+                }
+
             }
-            shipment.setNetWeight(netWeight);
 
-            shipment.setTransportMortality((int) ExcelHelper.getCellNum(row, 13));
-            shipment.setTransportMortalityKg(transMortKg);
-            shipment.setKosherPercent(ExcelHelper.getCellNum(row, 15));
-            shipment.setLiverWeight(ExcelHelper.getCellNum(row, 16));
+            String rawNameCode = ExcelHelper.getCellString(row, 1);
+            if (rawNameCode == null || rawNameCode.trim().isEmpty()) {
+                dto.addError("Hiányzó Partner/Kód adat (B oszlop)");
+            } else {
+                Matcher matcher = NAME_CODE_PATTERN.matcher(rawNameCode.trim());
+                if (!matcher.find()) {
+                    dto.addError("Hibás formátum (Elvárt: Név ID/Sorszám/Év)");
+                } else {
+                    String pName = matcher.group(1).trim();
+                    Long pId = Long.parseLong(matcher.group(2));
+                    String seqNum = matcher.group(3);
+                    String year = matcher.group(4);
 
-            shipment.setMortalityCount((int) ExcelHelper.getCellNum(row, 18));
-            shipment.setFatteningDays((int) ExcelHelper.getCellNum(row, 20));
+                    dto.setPartnerName(pName);
+                    dto.setDeliveryCode(seqNum + "/" + year);
+
+                    shipmentData.setDeliveryCode(seqNum + "/" + year);
+                    shipmentData.setPartnerId(pId);
+                    shipmentData.setTempPartnerName(pName);
+                }
+            }
+
+            String city = ExcelHelper.getCellString(row, 2);
+            String county = ExcelHelper.getCellString(row, 3);
+            dto.setLocationCity(city);
+
+            shipmentData.setTempCity(city);
+            shipmentData.setTempCounty(county);
+
+            if (shipmentData.getPartnerId() != null && partnerCache.containsKey(shipmentData.getPartnerId())) {
+                Partner p = partnerCache.get(shipmentData.getPartnerId());
+                String searchCity = (city == null || city.isEmpty()) ? "Ismeretlen" : city;
+
+                p.getLocations().stream()
+                        .filter(l -> l.getCity().equalsIgnoreCase(searchCity))
+                        .findFirst()
+                        .ifPresent(loc -> shipmentData.setLocationId(loc.getId()));
+            }
+
+            fillShipmentDataSafe(shipmentData, row, dto);
 
         } catch (Exception e) {
-            throw new IllegalArgumentException("Adathiba: " + e.getMessage());
+            dto.addError("Kritikus hiba: " + e.getMessage());
         }
+
+        return dto;
+    }
+
+    private void fillShipmentDataSafe(CreateShipmentDTO data, Row row, ImportRowDTO dto) {
+        try {
+            data.setDeliveryDate(ExcelHelper.getCellDate(row, 4));
+        } catch (Exception e) { dto.addError("Hibás szállítási dátum"); }
+
+        try {
+            data.setQuantity((int) ExcelHelper.getCellNum(row, 5));
+        } catch (Exception e) { dto.addError("Hibás darabszám"); }
+
+        try {
+            data.setTotalWeight(ExcelHelper.getCellNum(row, 6));
+        } catch (Exception e) { dto.addError("Hibás súly"); }
+
+        data.setProcessingWeek((int) ExcelHelper.getCellNum(row, 8));
+        data.setProcessingDate(ExcelHelper.getCellDate(row, 9));
+
+        double netWeight = ExcelHelper.getCellNum(row, 11);
+        double transMortKg = ExcelHelper.getCellNum(row, 14);
+        if (netWeight == 0.0 && data.getTotalWeight() != null && data.getTotalWeight() > 0) {
+            netWeight = data.getTotalWeight() - transMortKg;
+        }
+        data.setNetWeight(netWeight);
+
+        data.setTransportMortality((int) ExcelHelper.getCellNum(row, 13));
+        data.setTransportMortalityKg(transMortKg);
+        data.setKosherPercent(ExcelHelper.getCellNum(row, 15));
+        data.setLiverWeight(ExcelHelper.getCellNum(row, 16));
+
+        data.setFatteningRate(ExcelHelper.getCellNum(row, 17));
+
+        data.setMortalityCount((int) ExcelHelper.getCellNum(row, 18));
+        data.setFatteningDays((int) ExcelHelper.getCellNum(row, 20));
+    }
+
+
+    private void resolveGrower(CreateShipmentDTO dto, Map<String, Grower> cache) {
+        if (dto.getGrowerId() != null) return;
+
+        if (dto.getTempGrowerName() != null && !dto.getTempGrowerName().isEmpty()) {
+            String key = dto.getTempGrowerName() + "|" + (dto.getTempGrowerCity() == null ? "" : dto.getTempGrowerCity());
+
+            if (cache.containsKey(key)) {
+                dto.setGrowerId(cache.get(key).getId());
+            } else {
+                Grower newG = new Grower();
+                newG.setName(dto.getTempGrowerName());
+                newG.setCity(dto.getTempGrowerCity());
+                newG = growerRepository.save(newG);
+
+                cache.put(key, newG);
+                dto.setGrowerId(newG.getId());
+            }
+        }
+    }
+
+    private void resolvePartnerAndLocation(CreateShipmentDTO dto, Map<Long, Partner> cache) {
+        if (dto.getLocationId() != null) return;
+        if (dto.getPartnerId() == null) return;
+
+        Partner partner;
+        if (cache.containsKey(dto.getPartnerId())) {
+            partner = cache.get(dto.getPartnerId());
+        } else {
+            partner = new Partner();
+            partner.setId(dto.getPartnerId());
+            partner.setName(dto.getTempPartnerName());
+            partner = partnerRepository.save(partner);
+            cache.put(partner.getId(), partner);
+        }
+
+        String city = (dto.getTempCity() == null || dto.getTempCity().isEmpty()) ? "Ismeretlen" : dto.getTempCity();
+        String county = dto.getTempCounty();
+
+        Optional<PartnerLocation> locOpt = partner.getLocations().stream()
+                .filter(l -> l.getCity().equalsIgnoreCase(city))
+                .findFirst();
+
+        if (locOpt.isPresent()) {
+            PartnerLocation loc = locOpt.get();
+            if (county != null && !county.equals(loc.getCounty())) {
+                loc.setCounty(county);
+                locationRepository.save(loc);
+            }
+            dto.setLocationId(loc.getId());
+        } else {
+            PartnerLocation newLoc = new PartnerLocation();
+            newLoc.setPartner(partner);
+            newLoc.setCity(city);
+            newLoc.setCounty(county);
+            newLoc = locationRepository.save(newLoc);
+
+            partner.getLocations().add(newLoc);
+            dto.setLocationId(newLoc.getId());
+        }
+    }
+
+    private Map<String, Grower> loadGrowerCache() {
+        return growerRepository.findAll().stream()
+                .collect(Collectors.toMap(g -> g.getName() + "|" + (g.getCity() == null ? "" : g.getCity()), g -> g));
+    }
+
+    private Map<Long, Partner> loadPartnerCache() {
+        return partnerRepository.findAll().stream()
+                .collect(Collectors.toMap(Partner::getId, p -> p));
     }
 }
