@@ -1,5 +1,6 @@
 package com.poultry.backend.services;
 
+import com.poultry.backend.dtos.GrowerStatsDTO;
 import com.poultry.backend.entities.Grower;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.Shipment;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,18 +31,23 @@ public class GrowerService {
     public List<Grower> getAllGrowersWithStats() {
         List<Grower> growers = growerRepository.findAll();
 
+        List<GrowerStatsDTO> stats = shipmentRepository.getQuantitiesPerGrowerAndPartner();
+
+        Map<String, Long> statsMap = stats.stream().collect(Collectors.toMap(
+                dto -> dto.getGrowerId() + "-" + dto.getPartnerId(),
+                dto -> dto.getTotalQuantity() != null ? dto.getTotalQuantity() : 0L
+        ));
+
         for (Grower g : growers) {
             for (Partner p : g.getPartners()) {
-                Integer total = shipmentRepository.sumQuantityByGrowerAndPartner(g.getId(), p.getId());
-                p.setTotalQuantity(total != null ? total.longValue() : 0L);
+                String key = g.getId() + "-" + p.getId();
+                p.setTotalQuantity(statsMap.getOrDefault(key, 0L));
             }
         }
         return growers;
     }
 
-    public Grower createGrower(Grower g) {
-        return growerRepository.save(g);
-    }
+    public Grower createGrower(Grower g) { return growerRepository.save(g); }
 
     public Grower updateGrower(Long id, Grower details) {
         Grower g = growerRepository.findById(id).orElseThrow();

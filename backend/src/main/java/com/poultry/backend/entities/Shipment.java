@@ -39,17 +39,49 @@ public class Shipment {
     private Double liverWeight;
     private Double kosherPercent;
     private Double fatteningRate;
-    private Integer mortalityCount;
     private Double mortalityRate;
+    private Integer netQuantity;
+
+    private Integer mortalityCount;
     private Integer fatteningDays;
     private Integer transportMortality;
     private Double transportMortalityKg;
     private Integer processingWeek;
 
-    private Integer netQuantity;
     private Double netWeight;
 
     public Partner getPartner() {
         return location != null ? location.getPartner() : null;
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void calculateDerivedFields() {
+        int actualMortality = (mortalityCount != null) ? mortalityCount : 0;
+        if (quantity != null) {
+            this.netQuantity = quantity - actualMortality;
+        }
+
+        this.fatteningRate = calculateFatteningRate();
+
+        if (quantity != null && quantity > 0 && mortalityCount != null) {
+            this.mortalityRate = (double) mortalityCount / quantity * 100.0;
+            this.mortalityRate = Math.round(this.mortalityRate * 100.0) / 100.0;
+        } else if (quantity != null && quantity > 0) {
+            this.mortalityRate = 0.0;
+        }
+    }
+
+    private Double calculateFatteningRate() {
+        if (totalWeight == null || netWeight == null ||
+                quantity == null || quantity == 0 ||
+                netQuantity == null || netQuantity == 0) {
+            return 0.0;
+        }
+        double avgGross = totalWeight / quantity;
+        double avgNet = netWeight / netQuantity;
+        double rate = avgNet - avgGross;
+
+        return Math.round(rate * 100.0) / 100.0;
     }
 }

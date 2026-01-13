@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.temporal.WeekFields;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -27,12 +26,10 @@ public class ShipmentService {
 
     public Shipment createShipment(CreateShipmentDTO createShipment) {
         validateAndFixDeliveryCode(createShipment);
-        validateNumericFields(createShipment);
+
         if (createShipment.getLocationId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A telephely (Location ID) megadása kötelező!");
         }
-
-
 
         PartnerLocation location = partnerLocationRepository.findById(createShipment.getLocationId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Telephely nem található!"));
@@ -49,163 +46,73 @@ public class ShipmentService {
             if (!grower.getPartners().contains(partner)) {
                 grower.getPartners().add(partner);
                 partner.getGrowers().add(grower);
-
                 growerRepository.save(grower);
             }
         }
 
         mapDtoToEntity(createShipment, shipment);
-
         return shipmentRepository.save(shipment);
     }
 
     @Transactional
     public Shipment updateShipment(Long id, CreateShipmentDTO shipmentToUpdate) {
         validateAndFixDeliveryCode(shipmentToUpdate);
-        validateNumericFields(shipmentToUpdate);
 
         Shipment shipment = shipmentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nincs ilyen szállítás"));
 
-        Grower oldGrower = shipment.getGrower();
-        Partner oldPartner = shipment.getLocation().getPartner();
-
-        if (shipmentToUpdate.getLocationId() != null &&
-                !shipmentToUpdate.getLocationId().equals(shipment.getLocation().getId())) {
-            PartnerLocation newLocation = partnerLocationRepository.findById(shipmentToUpdate.getLocationId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Új telephely nem található"));
-            shipment.setLocation(newLocation);
-        }
-
-        if (shipmentToUpdate.getGrowerId() != null) {
-            if (oldGrower == null || !shipmentToUpdate.getGrowerId().equals(oldGrower.getId())) {
-                Grower newGrower = growerRepository.findById(shipmentToUpdate.getGrowerId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "A megadott nevelő nem található!"));
-                shipment.setGrower(newGrower);
-            }
-        }
-
-        if (shipment.getGrower() != null) {
-            Grower currentGrower = shipment.getGrower();
-            Partner currentPartner = shipment.getLocation().getPartner();
-
-            if (!currentGrower.getPartners().contains(currentPartner)) {
-                currentGrower.getPartners().add(currentPartner);
-                currentPartner.getGrowers().add(currentGrower);
-                growerRepository.save(currentGrower);
-            }
-        }
-
-        if (oldGrower != null) {
-
-            long count = shipmentRepository.countByGrowerAndLocation_Partner(oldGrower, oldPartner);
-
-            if (count <= 1) {
-                if (oldGrower.getPartners().contains(oldPartner)) {
-                    oldGrower.getPartners().remove(oldPartner);
-                    oldPartner.getGrowers().remove(oldGrower);
-                    growerRepository.save(oldGrower);
-                }
-            }
-        }
+        handleGrowerUpdate(shipment, shipmentToUpdate);
 
         mapDtoToEntity(shipmentToUpdate, shipment);
         return shipmentRepository.save(shipment);
     }
 
-    public List<Shipment> getHistoryByPartner(Long partnerId) {
-        return shipmentRepository.findByLocationPartnerIdOrderByProcessingDateDesc(partnerId);
+    private void handleGrowerUpdate(Shipment shipment, CreateShipmentDTO dto) {
+        if (dto.getLocationId() != null && !dto.getLocationId().equals(shipment.getLocation().getId())) {
+            PartnerLocation newLoc = partnerLocationRepository.findById(dto.getLocationId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Új telephely nem található"));
+            shipment.setLocation(newLoc);
+        }
+
+        if (dto.getGrowerId() != null) {
+            Grower currentGrower = shipment.getGrower();
+            if (currentGrower == null || !dto.getGrowerId().equals(currentGrower.getId())) {
+                Grower newGrower = growerRepository.findById(dto.getGrowerId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Grower nem található"));
+                shipment.setGrower(newGrower);
+
+                Partner partner = shipment.getLocation().getPartner();
+                if (!newGrower.getPartners().contains(partner)) {
+                    newGrower.getPartners().add(partner);
+                    partner.getGrowers().add(newGrower);
+                    growerRepository.save(newGrower);
+                }
+            }
+        }
     }
 
-    public List<Shipment> getHistoryByPartner(List<Long> partnerIds) {
-        return shipmentRepository.findByLocationPartnerIdInOrderByProcessingDateDesc(partnerIds);
-    }
+    private void mapDtoToEntity(CreateShipmentDTO dto, Shipment shipment) {
+        shipment.setDeliveryCode(dto.getDeliveryCode());
+        shipment.setDeliveryDate(dto.getDeliveryDate());
+        shipment.setProcessingDate(dto.getProcessingDate());
 
-    public List<Shipment> getHistoryByLocation(Long locationId) {
-        return shipmentRepository.findByLocationIdOrderByProcessingDateDesc(locationId);
-    }
-
-    public List<Shipment> getHistoryByGrower(Long growerId) {
-        return shipmentRepository.findByGrowerIdOrderByProcessingDateDesc(growerId);
-    }
-
-    public List<Shipment> getAllShipments() {
-        return shipmentRepository.findAll();
-    }
-
-    public void deleteShipment(Long id) {
-        shipmentRepository.deleteById(id);
-    }
-
-    private void mapDtoToEntity(CreateShipmentDTO createShipment, Shipment shipment) {
-        shipment.setDeliveryCode(createShipment.getDeliveryCode());
-        shipment.setDeliveryDate(createShipment.getDeliveryDate());
-        shipment.setProcessingDate(createShipment.getProcessingDate());
-
-        if (createShipment.getProcessingDate() != null) {
-            int week = createShipment.getProcessingDate().get(WeekFields.ISO.weekOfWeekBasedYear());
+        if (dto.getProcessingDate() != null) {
+            int week = dto.getProcessingDate().get(WeekFields.ISO.weekOfWeekBasedYear());
             shipment.setProcessingWeek(week);
         } else {
-            shipment.setProcessingWeek(createShipment.getProcessingWeek() != null ? createShipment.getProcessingWeek() : 0);
+            shipment.setProcessingWeek(dto.getProcessingWeek() != null ? dto.getProcessingWeek() : 0);
         }
 
-        shipment.setQuantity(createShipment.getQuantity());
-        shipment.setTotalWeight(createShipment.getTotalWeight());
-        shipment.setLiverWeight(createShipment.getLiverWeight());
-        shipment.setKosherPercent(createShipment.getKosherPercent());
+        shipment.setQuantity(dto.getQuantity());
+        shipment.setTotalWeight(dto.getTotalWeight());
+        shipment.setLiverWeight(dto.getLiverWeight());
+        shipment.setKosherPercent(dto.getKosherPercent());
+        shipment.setMortalityCount(dto.getMortalityCount());
+        shipment.setTransportMortality(dto.getTransportMortality());
+        shipment.setTransportMortalityKg(dto.getTransportMortalityKg());
+        shipment.setFatteningDays(dto.getFatteningDays());
 
-        shipment.setMortalityCount(createShipment.getMortalityCount());
-        shipment.setTransportMortality(createShipment.getTransportMortality());
-        shipment.setTransportMortalityKg(createShipment.getTransportMortalityKg());
-        shipment.setFatteningDays(createShipment.getFatteningDays());
-
-        int calculatedNetQuantity = 0;
-        if (createShipment.getQuantity() != null) {
-            int mortality = createShipment.getMortalityCount() != null ? createShipment.getMortalityCount() : 0;
-            calculatedNetQuantity = createShipment.getQuantity() - mortality;
-            shipment.setNetQuantity(calculatedNetQuantity);
-        } else {
-            calculatedNetQuantity = createShipment.getNetQuantity() != null ? createShipment.getNetQuantity() : 0;
-            shipment.setNetQuantity(calculatedNetQuantity);
-        }
-
-        shipment.setNetWeight(createShipment.getNetWeight());
-
-        if (createShipment.getFatteningRate() != null) {
-            shipment.setFatteningRate(createShipment.getFatteningRate());
-        } else {
-            Double calculatedRate = calculateFatteningRate(
-                    createShipment.getTotalWeight(),
-                    createShipment.getQuantity(),
-                    createShipment.getNetWeight(),
-                    calculatedNetQuantity
-            );
-            shipment.setFatteningRate(calculatedRate);
-        }
-
-        if (createShipment.getQuantity() != null && createShipment.getQuantity() > 0 &&
-                createShipment.getMortalityCount() != null) {
-
-            double rate = (double) createShipment.getMortalityCount() / createShipment.getQuantity() * 100.0;
-            shipment.setMortalityRate(Math.round(rate * 100.0) / 100.0);
-
-        } else {
-            shipment.setMortalityRate(createShipment.getMortalityRate());
-        }
-    }
-
-    private Double calculateFatteningRate(
-            Double totalWeight, Integer quantity, Double netWeight, Integer netQuantity) {
-        if (totalWeight == null || netWeight == null ||
-                quantity == null || quantity == 0 ||
-                netQuantity == null || netQuantity == 0) {
-            return 0.0;
-        }
-
-        double avgTotalWeight = totalWeight / quantity;
-        double avgNetWeight = netWeight / netQuantity;
-
-        return avgNetWeight - avgTotalWeight;
+        shipment.setNetWeight(dto.getNetWeight());
     }
 
     private void validateAndFixDeliveryCode(CreateShipmentDTO dto) {
@@ -215,46 +122,30 @@ public class ShipmentService {
         String[] parts = code.split("/");
 
         if (parts.length != 2) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Hibás formátum! Helyes: Sorszám/Év (pl. 001/25)");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hibás formátum! Helyes: Sorszám/Év (pl. 001/25)");
         }
-
         if (dto.getDeliveryDate() != null) {
             String yearSuffix = String.valueOf(dto.getDeliveryDate().getYear()).substring(2);
             if (!parts[1].equals(yearSuffix)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "A kód évének (" + parts[1] + ") egyeznie kell a dátummal (" + yearSuffix + ")!");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A kód évének nem egyezik a dátummal!");
             }
         }
         dto.setDeliveryCode(code);
     }
 
-    private void validateNumericFields(CreateShipmentDTO dto) {
-        if (isNegative(dto.getQuantity())) throwBadRequest("A befogott darabszám");
-        if (isNegative(dto.getProcessingWeek())) throwBadRequest("A hét");
-        if (isNegative(dto.getTransportMortality())) throwBadRequest("Az útihullás darabszám");
-        if (isNegative(dto.getFatteningDays())) throwBadRequest("A tömés napok");
-        if (isNegative(dto.getNetQuantity())) throwBadRequest("A beszállított darabszám");
-
-        if (isNegative(dto.getTotalWeight())) throwBadRequest("A befogott súly");
-        if (isNegative(dto.getNetWeight())) throwBadRequest("A beszállított súly");
-        if (isNegative(dto.getTransportMortalityKg())) throwBadRequest("Az útihullás súly");
-        if (isNegative(dto.getLiverWeight())) throwBadRequest("A máj súly");
-
-        if (dto.getKosherPercent() != null && (dto.getKosherPercent() < 0 || dto.getKosherPercent() > 100)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A kóser százaléknak 0 és 100 között kell lennie!");
-        }
+    public List<Shipment> getHistoryByPartner(Long partnerId) {
+        return shipmentRepository.findByLocationPartnerIdOrderByProcessingDateDesc(partnerId);
     }
-
-    private boolean isNegative(Integer value) {
-        return value != null && value < 0;
+    public List<Shipment> getHistoryByPartner(List<Long> partnerIds) {
+        return shipmentRepository.findByLocationPartnerIdInOrderByProcessingDateDesc(partnerIds);
     }
-
-    private boolean isNegative(Double value) {
-        return value != null && value < 0;
+    public List<Shipment> getHistoryByLocation(Long locationId) {
+        return shipmentRepository.findByLocationIdOrderByProcessingDateDesc(locationId);
     }
-
-    private void throwBadRequest(String fieldName) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " nem lehet negatív!");
+    public List<Shipment> getHistoryByGrower(Long growerId) {
+        return shipmentRepository.findByGrowerIdOrderByProcessingDateDesc(growerId);
+    }
+    public void deleteShipment(Long id) {
+        shipmentRepository.deleteById(id);
     }
 }

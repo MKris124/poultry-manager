@@ -28,6 +28,7 @@ public class PartnerService {
 
     public List<Partner> getAllPartners() {
         List<Partner> partners = partnerRepository.findAll();
+        // Itt már a meglévő DTO-t használja a repository, ami jó.
         List<PartnerTotalQuantityDTO> totals = shipmentRepository.getTotalQuantitiesByPartner();
 
         Map<Long, Long> quantityMap = totals.stream()
@@ -43,20 +44,13 @@ public class PartnerService {
     }
 
     public Partner createPartner(Partner partner) {
-        if (partnerRepository.existsById(partner.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ez a Partner ID (" + partner.getId() + ") már foglalt!");
-        }
-        if (partner.getName() == null || partner.getName().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A név nem lehet üres!");
+        if (partner.getId() != null && partnerRepository.existsById(partner.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ez a Partner ID már foglalt!");
         }
 
         if (partner.getLocations() != null) {
-            for (PartnerLocation loc : partner.getLocations()) {
-                loc.setPartner(partner);
-            }
+            partner.getLocations().forEach(loc -> loc.setPartner(partner));
         }
-
         return partnerRepository.save(partner);
     }
 
@@ -126,18 +120,17 @@ public class PartnerService {
         PartnerGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Csoport nem található"));
 
-        List<Partner> members = group.getMembers();
-        for(Partner p : members) {
-            p.setGroup(null);
-            partnerRepository.save(p);
-        }
+        group.getMembers().forEach(p -> p.setGroup(null));
+        partnerRepository.saveAll(group.getMembers());
+
         groupRepository.delete(group);
     }
 
     @Transactional
     public void deleteAllData() {
-        shipmentRepository.deleteAll();
-        locationRepository.deleteAll();
+        shipmentRepository.deleteAllInBatch();
+        locationRepository.deleteAllInBatch();
+
         List<Partner> allPartners = partnerRepository.findAll();
         for (Partner p : allPartners) {
             p.getGrowers().clear();
@@ -147,8 +140,8 @@ public class PartnerService {
         partnerRepository.saveAll(allPartners);
         partnerRepository.flush();
 
-        partnerRepository.deleteAll();
-        groupRepository.deleteAll();
-        growerRepository.deleteAll();
+        partnerRepository.deleteAllInBatch();
+        groupRepository.deleteAllInBatch();
+        growerRepository.deleteAllInBatch();
     }
 }

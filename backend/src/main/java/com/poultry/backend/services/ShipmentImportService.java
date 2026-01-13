@@ -18,10 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -43,12 +43,18 @@ public class ShipmentImportService {
             Sheet sheet = workbook.getSheetAt(0);
             List<Shipment> shipmentsToSave = new ArrayList<>();
 
+            Map<String, Grower> growerCache = growerRepository.findAll().stream()
+                    .collect(Collectors.toMap(g -> g.getName() + "|" + (g.getCity() == null ? "" : g.getCity()), g -> g));
+
+            Map<Long, Partner> partnerCache = partnerRepository.findAll().stream()
+                    .collect(Collectors.toMap(Partner::getId, p -> p));
+
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
                 try {
-                    Shipment shipment = processRow(row);
+                    Shipment shipment = processRow(row, growerCache, partnerCache);
                     if (shipment != null) {
                         shipmentsToSave.add(shipment);
                         result.incrementSuccess();
@@ -62,14 +68,12 @@ public class ShipmentImportService {
         return result;
     }
 
-    private Shipment processRow(Row row) throws Exception {
+    private Shipment processRow(Row row, Map<String, Grower> growerCache, Map<Long, Partner> partnerCache) throws Exception {
         String rawGrowerData = ExcelHelper.getCellString(row, 0);
-        Grower grower = createGrower(rawGrowerData);
+        Grower grower = getCachedOrCreateGrower(rawGrowerData, growerCache);
 
         String rawNameCode = ExcelHelper.getCellString(row, 1);
-        if (rawNameCode == null || rawNameCode.trim().isEmpty()) {
-            return null;
-        }
+        if (rawNameCode == null || rawNameCode.trim().isEmpty()) return null;
 
         Matcher matcher = NAME_CODE_PATTERN.matcher(rawNameCode.trim());
         if (!matcher.find()) {
@@ -77,89 +81,83 @@ public class ShipmentImportService {
         }
 
         String partnerName = matcher.group(1).trim();
-        String partnerIdStr = matcher.group(2);
+        Long partnerId = Long.parseLong(matcher.group(2));
         String seqNum = matcher.group(3);
         String year = matcher.group(4);
 
         String city = ExcelHelper.getCellString(row, 2);
-
         String county = ExcelHelper.getCellString(row, 3);
 
-        Partner partner = getOrCreatePartner(partnerIdStr, partnerName, grower);
+        Partner partner = getCachedOrCreatePartner(partnerId, partnerName, grower, partnerCache);
         PartnerLocation location = getOrCreateLocation(partner, city, county);
+
         String cleanDeliveryCode = seqNum + "/" + year;
 
         Shipment shipment = shipmentRepository.findByDeliveryCodeAndLocation(cleanDeliveryCode, location)
                 .orElse(new Shipment());
-        shipment.setGrower(grower);
 
-        fillShipmentData(shipment, location, cleanDeliveryCode, row);
+        shipment.setGrower(grower);
+        shipment.setLocation(location);
+        shipment.setDeliveryCode(cleanDeliveryCode);
+
+        fillShipmentData(shipment, row);
 
         return shipment;
     }
 
-    private Grower createGrower(String rawGrowerData) {
-        if (rawGrowerData == null || rawGrowerData.trim().isEmpty()) {
-            return null;
-        }
+    private Grower getCachedOrCreateGrower(String rawData, Map<String, Grower> cache) {
+        if (rawData == null || rawData.trim().isEmpty()) return null;
 
-        String trimmedData = rawGrowerData.trim();
-        String gName = trimmedData;
-        String gCity = "";
-        Matcher m = GROWER_PATTERN.matcher(trimmedData);
+        String trimmed = rawData.trim();
+        String name = trimmed;
+        String city = "";
+
+        Matcher m = GROWER_PATTERN.matcher(trimmed);
         if (m.find()) {
-            gName = m.group(1).trim();
-            gCity = m.group(2).trim();
+            name = m.group(1).trim();
+            city = m.group(2).trim();
         }
 
-        return getOrCreateGrower(gName, gCity);
+        String key = name + "|" + city;
+        if (cache.containsKey(key)) return cache.get(key);
+
+        Grower newG = new Grower();
+        newG.setName(name);
+        newG.setCity(city);
+        newG = growerRepository.save(newG);
+        cache.put(key, newG);
+        return newG;
     }
 
-    private Grower getOrCreateGrower(String name, String city) {
-        return growerRepository.findByNameAndCity(name, city)
-                .orElseGet(() -> {
-                    Grower g = new Grower();
-                    g.setName(name);
-                    g.setCity(city);
-                    return growerRepository.save(g);
-                });
-    }
-
-    private Partner getOrCreatePartner(String partnerIdStr, String partnerName, Grower grower) {
-        long pId = Long.parseLong(partnerIdStr);
-
-        return partnerRepository.findById(pId)
-                .map(p -> {
-                    if (grower != null) {
-                        boolean alreadyLinked = p.getGrowers().stream()
-                                .anyMatch(g -> g.getId().equals(grower.getId()));
-
-                        if (!alreadyLinked) {
-                            p.getGrowers().add(grower);
-                            return partnerRepository.save(p);
-                        }
-                    }
-                    return p;
-                })
-                .orElseGet(() -> {
-                    Partner newP = new Partner();
-                    newP.setId(pId);
-                    newP.setName(partnerName);
-                    if (grower != null) {
-                        newP.getGrowers().add(grower);
-                    }
-                    return partnerRepository.save(newP);
-                });
+    private Partner getCachedOrCreatePartner(Long id, String name, Grower grower, Map<Long, Partner> cache) {
+        Partner p;
+        if (cache.containsKey(id)) {
+            p = cache.get(id);
+            if (grower != null) {
+                boolean linked = p.getGrowers().stream().anyMatch(g -> g.getId().equals(grower.getId()));
+                if (!linked) {
+                    p.getGrowers().add(grower);
+                    p = partnerRepository.save(p);
+                    cache.put(id, p);
+                }
+            }
+        } else {
+            p = new Partner();
+            p.setId(id);
+            p.setName(name);
+            if (grower != null) p.getGrowers().add(grower);
+            p = partnerRepository.save(p);
+            cache.put(id, p);
+        }
+        return p;
     }
 
     private PartnerLocation getOrCreateLocation(Partner partner, String city, String county) {
-        if (city == null || city.trim().isEmpty()) {
-            city = "Ismeretlen";
-        }
+        String finalCity = (city == null || city.trim().isEmpty()) ? "Ismeretlen" : city;
 
-        String finalCity = city;
-
-        return partnerLocationRepository.findByPartnerAndCity(partner, finalCity)
+        return partner.getLocations().stream()
+                .filter(l -> l.getCity().equalsIgnoreCase(finalCity))
+                .findFirst()
                 .map(loc -> {
                     if (county != null && !county.equals(loc.getCounty())) {
                         loc.setCounty(county);
@@ -172,92 +170,36 @@ public class ShipmentImportService {
                     newLoc.setPartner(partner);
                     newLoc.setCity(finalCity);
                     newLoc.setCounty(county);
+                    partner.getLocations().add(newLoc);
                     return partnerLocationRepository.save(newLoc);
                 });
     }
 
-    private void fillShipmentData(Shipment shipment, PartnerLocation location, String deliveryCode, Row row) {
-        String currentField = "Ismeretlen mező";
-
+    private void fillShipmentData(Shipment shipment, Row row) {
         try {
-            shipment.setLocation(location);
-            shipment.setDeliveryCode(deliveryCode);
-
-            currentField = "Szállítás dátuma (D oszlop)";
             shipment.setDeliveryDate(ExcelHelper.getCellDate(row, 4));
-
-            currentField = "Befogott db (E oszlop)";
-            int quantity = (int) ExcelHelper.getCellNum(row, 5);
-            shipment.setQuantity(quantity);
-
-            currentField = "Befogott súly (F oszlop)";
-            double totalWeight = ExcelHelper.getCellNum(row, 6);
-            shipment.setTotalWeight(totalWeight);
-
-            currentField = "Vágási hét (H oszlop)";
+            shipment.setQuantity((int) ExcelHelper.getCellNum(row, 5));
+            shipment.setTotalWeight(ExcelHelper.getCellNum(row, 6));
             shipment.setProcessingWeek((int) ExcelHelper.getCellNum(row, 8));
-
-            currentField = "Vágás dátuma (I oszlop)";
             shipment.setProcessingDate(ExcelHelper.getCellDate(row, 9));
 
-
-            currentField = "Beszállított db (J oszlop)";
-            int netQty = (int) ExcelHelper.getCellNum(row, 10);
-
-            currentField = "Beszállított kg (K oszlop)";
             double netWeight = ExcelHelper.getCellNum(row, 11);
-
-            currentField = "Útihulla db (M oszlop)";
-            int transMort = (int) ExcelHelper.getCellNum(row, 13);
-            shipment.setTransportMortality(transMort);
-
-            currentField = "Útihulla kg (N oszlop)";
             double transMortKg = ExcelHelper.getCellNum(row, 14);
-            shipment.setTransportMortalityKg(transMortKg);
-
-            if (netQty == 0 && quantity > 0) {
-                netQty = quantity - transMort;
+            if (netWeight == 0.0 && shipment.getTotalWeight() > 0) {
+                netWeight = shipment.getTotalWeight() - transMortKg;
             }
-            if (netWeight == 0.0 && totalWeight > 0) {
-                netWeight = totalWeight - transMortKg;
-            }
-
-            shipment.setNetQuantity(netQty);
             shipment.setNetWeight(netWeight);
 
-            currentField = "Kóser % (O oszlop)";
+            shipment.setTransportMortality((int) ExcelHelper.getCellNum(row, 13));
+            shipment.setTransportMortalityKg(transMortKg);
             shipment.setKosherPercent(ExcelHelper.getCellNum(row, 15));
-
-            currentField = "Máj súly (P oszlop)";
             shipment.setLiverWeight(ExcelHelper.getCellNum(row, 16));
 
-            currentField = "Ráhízás (Q oszlop)";
-            double fatRate = ExcelHelper.getCellNum(row, 17);
-
-            if (fatRate == 0.0 && quantity > 0 && netQty > 0) {
-                double avgGross = totalWeight / quantity;
-                double avgNet = netWeight / netQty;
-                fatRate = avgNet - avgGross;
-            }
-            shipment.setFatteningRate(fatRate);
-
-            currentField = "Elhullás db (R oszlop)";
-            int mortCount = (int) ExcelHelper.getCellNum(row, 18);
-            shipment.setMortalityCount(mortCount);
-
-            currentField = "Elhullás % (S oszlop)";
-            double mortRate = ExcelHelper.getCellNum(row, 19) * 100;
-
-            if (mortRate == 0.0 && quantity > 0 && mortCount > 0) {
-                mortRate = (double) mortCount / quantity * 100.0;
-            }
-            shipment.setMortalityRate(mortRate);
-
-            currentField = "Tömés napok (T oszlop)";
+            shipment.setMortalityCount((int) ExcelHelper.getCellNum(row, 18));
             shipment.setFatteningDays((int) ExcelHelper.getCellNum(row, 20));
 
         } catch (Exception e) {
-            throw new IllegalArgumentException("Hiba a következő adatnál: '" + currentField + "'.");
+            throw new IllegalArgumentException("Adathiba: " + e.getMessage());
         }
     }
 }

@@ -2,14 +2,12 @@ package com.poultry.backend.services;
 
 import com.poultry.backend.dtos.LeaderboardDTO;
 import com.poultry.backend.dtos.PartnerStatsDTO;
-import com.poultry.backend.entities.Grower;
 import com.poultry.backend.entities.Partner;
 import com.poultry.backend.entities.PartnerGroup;
-import com.poultry.backend.entities.Shipment;
-import com.poultry.backend.repositories.GrowerRepository;
 import com.poultry.backend.repositories.PartnerGroupRepository;
 import com.poultry.backend.repositories.PartnerRepository;
 import com.poultry.backend.repositories.ShipmentRepository;
+import com.poultry.backend.repositories.IStatsProjection;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,152 +20,126 @@ public class AnalyticsService {
     private final ShipmentRepository shipmentRepository;
     private final PartnerRepository partnerRepository;
     private final PartnerGroupRepository groupRepository;
-    private final GrowerRepository growerRepository;
+    private final ScoringService scoringService;
 
     public List<LeaderboardDTO> getLeaderboard() {
-        List<Shipment> allShipments = shipmentRepository.findAll();
-        Map<Long, List<Shipment>> shipmentsByPartnerId = allShipments.stream()
-                .filter(s -> s.getLocation() != null && s.getLocation().getPartner() != null)
-                .collect(Collectors.groupingBy(s -> s.getLocation().getPartner().getId()));
+        Map<Long, PartnerStatsDTO> statsMap = fetchAllStatsAsMap();
 
         List<LeaderboardDTO> finalLeaderboard = new ArrayList<>();
-        List<Partner> allPartners = partnerRepository.findAll();
         Set<Long> processedPartnerIds = new HashSet<>();
 
         List<PartnerGroup> groups = groupRepository.findAll();
-        for (PartnerGroup group : groups) {
-            List<Shipment> groupShipments = new ArrayList<>();
-            List<LeaderboardDTO> memberDTOs = new ArrayList<>();
+        GroupStats(groups, processedPartnerIds, statsMap, finalLeaderboard);
 
-            for (Partner member : group.getMembers()) {
-                processedPartnerIds.add(member.getId());
-                // Itt már jó a map, mert location.partner.id alapján készült
-                List<Shipment> memberShipList = shipmentsByPartnerId.getOrDefault(member.getId(), Collections.emptyList());
-                groupShipments.addAll(memberShipList);
+        List<Partner> allPartners = partnerRepository.findAll();
+        SingleStats(allPartners, processedPartnerIds, statsMap, finalLeaderboard);
 
-                LeaderboardDTO memberDTO = createDTO(member.getId(), member.getName(), memberShipList, false, null, null);
-                if (memberDTO == null) {
-                    memberDTO = new LeaderboardDTO(member.getId(), member.getName(), 0.0, 0.0, 0.0, 0.0, false, null, null);
-                }
-                memberDTOs.add(memberDTO);
-            }
-
-            LeaderboardDTO groupDTO = createDTO(group.getId()* -1, group.getName(), groupShipments, true, group.getColor(), memberDTOs);
-            if (groupDTO != null) {
-                finalLeaderboard.add(groupDTO);
-            }
-        }
-
-        // 2. EGYÉNI PARTNEREK
-        for (Partner partner : allPartners) {
-            if (!processedPartnerIds.contains(partner.getId())) {
-                List<Shipment> partnerShipments = shipmentsByPartnerId.getOrDefault(partner.getId(), Collections.emptyList());
-                LeaderboardDTO dto = createDTO(partner.getId(), partner.getName(), partnerShipments, false, null, null);
-
-                if (dto != null) {
-                    finalLeaderboard.add(dto);
-                }
-            }
-        }
+        finalLeaderboard.sort((a, b) -> Double.compare(b.getTotalScore(), a.getTotalScore()));
 
         return finalLeaderboard;
     }
 
-    private LeaderboardDTO createDTO(Long id, String name, List<Shipment> shipments, boolean isGroup, String color, List<LeaderboardDTO> members) {
-        PartnerStatsDTO stats = calculateStats(shipments);
+    private void SingleStats(List<Partner> allPartners, Set<Long> processedPartnerIds, Map<Long, PartnerStatsDTO> statsMap, List<LeaderboardDTO> finalLeaderboard) {
+        for (Partner partner : allPartners) {
+            if (!processedPartnerIds.contains(partner.getId())) {
+                PartnerStatsDTO stats = statsMap.getOrDefault(partner.getId(), new PartnerStatsDTO(0.0,0.0,0.0,0.0));
 
-        boolean hasData = stats.getAvgLiverWeight() > 0 || stats.getAvgKosherPercent() > 0;
-        boolean hasMembers = members != null && !members.isEmpty();
-
-        if (!hasData && !hasMembers) {
-            return null;
+                if (hasData(stats)) {
+                    finalLeaderboard.add(createLeaderboardEntry(partner.getId(), partner.getName(), stats, false, null, null));
+                }
+            }
         }
+    }
 
-        double liver = stats.getAvgLiverWeight();
-        double kosher = stats.getAvgKosherPercent();
-        double mortality = stats.getAvgMortalityRate();
+    private void GroupStats(List<PartnerGroup> groups, Set<Long> processedPartnerIds, Map<Long, PartnerStatsDTO> statsMap, List<LeaderboardDTO> finalLeaderboard) {
+        for (PartnerGroup group : groups) {
+            List<LeaderboardDTO> memberDTOs = new ArrayList<>();
 
-        double baseScore = (kosher * 5) + (liver * 400);
-        double multiplier = 1.0;
-        if (mortality >= 0) {
-            multiplier = 1.0 + ((5.0 - mortality) * 0.025);
-            if (multiplier < 0) multiplier = 0.0;
+            double sumLiver = 0;
+            double sumKosher = 0;
+            double sumFattening = 0;
+            double sumMortality = 0;
+            int count = 0;
+
+            for (Partner member : group.getMembers()) {
+                processedPartnerIds.add(member.getId());
+                PartnerStatsDTO memberStats = statsMap.getOrDefault(member.getId(), new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0));
+
+                if (hasData(memberStats)) {
+                    sumLiver += memberStats.getAvgLiverWeight();
+                    sumKosher += memberStats.getAvgKosherPercent();
+                    sumFattening += memberStats.getAvgFatteningRate();
+                    sumMortality += memberStats.getAvgMortalityRate();
+                    count++;
+                }
+
+                memberDTOs.add(createLeaderboardEntry(member.getId(), member.getName(), memberStats, false, null, null));
+            }
+
+            PartnerStatsDTO groupStats = new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
+            if (count > 0) {
+                groupStats = new PartnerStatsDTO(
+                        sumLiver / count,
+                        sumKosher / count,
+                        sumFattening / count,
+                        sumMortality / count
+                );
+            }
+
+            finalLeaderboard.add(createLeaderboardEntry(group.getId() * -1, group.getName(), groupStats, true, group.getColor(), memberDTOs));
         }
-        double finalScore = baseScore * multiplier;
+    }
+
+    private LeaderboardDTO createLeaderboardEntry(Long id, String name, PartnerStatsDTO stats, boolean isGroup, String color, List<LeaderboardDTO> members) {
+        Double score = scoringService.calculateScore(stats);
 
         return new LeaderboardDTO(
                 id,
                 name,
-                liver,
-                kosher,
-                mortality,
-                Math.round(finalScore * 100.0) / 100.0,
+                round(stats.getAvgLiverWeight()),
+                round(stats.getAvgKosherPercent()),
+                round(stats.getAvgMortalityRate()),
+                score,
                 isGroup,
                 color,
                 members
         );
     }
 
-    private PartnerStatsDTO calculateStats(List<Shipment> list) {
-        if (list == null || list.isEmpty()) return new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
+    private Map<Long, PartnerStatsDTO> fetchAllStatsAsMap() {
+        List<IStatsProjection> rawStats = shipmentRepository.getAllPartnerStatsRaw();
+        return rawStats.stream().collect(Collectors.toMap(
+                IStatsProjection::getId,
+                proj -> new PartnerStatsDTO(
+                        proj.getLiver() != null ? proj.getLiver() : 0.0,
+                        proj.getKosher() != null ? proj.getKosher() : 0.0,
+                        proj.getFattening() != null ? proj.getFattening() : 0.0,
+                        proj.getMortality() != null ? proj.getMortality() : 0.0
+                )
+        ));
+    }
 
-        double sumLiver = 0; int countLiver = 0;
-        double sumKosher = 0; int countKosher = 0;
-        double sumFattening = 0; int countFattening = 0;
-        double sumMortalityRate = 0; int countMortalityRate = 0;
-
-        for (Shipment shipment : list) {
-            if (shipment.getLiverWeight() != null ) {
-                sumLiver += shipment.getLiverWeight(); countLiver++;
-            }
-            if (shipment.getKosherPercent() != null) {
-                sumKosher += shipment.getKosherPercent(); countKosher++;
-            }
-            if (shipment.getFatteningRate() != null) {
-                sumFattening += shipment.getFatteningRate(); countFattening++;
-            }
-            if (shipment.getMortalityRate() != null) {
-                sumMortalityRate += shipment.getMortalityRate(); countMortalityRate++;
-            }
-        }
-
-        return new PartnerStatsDTO(
-                round(countLiver > 0 ? sumLiver / countLiver : 0),
-                round(countKosher > 0 ? sumKosher / countKosher : 0),
-                round(countFattening > 0 ? sumFattening / countFattening : 0),
-                round(countMortalityRate > 0 ? sumMortalityRate / countMortalityRate : 0)
-        );
+    private boolean hasData(PartnerStatsDTO stats) {
+        return stats.getAvgLiverWeight() > 0 || stats.getAvgKosherPercent() > 0;
     }
 
     public PartnerStatsDTO getPartnerStats(Long partnerId) {
-        List<Shipment> history = shipmentRepository.findByLocationPartnerIdOrderByProcessingDateDesc(partnerId);
-        if (history.isEmpty()) return new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
-        return calculateStats(history);
+        return shipmentRepository.getStatsByPartnerId(partnerId);
     }
 
     public PartnerStatsDTO getGrowerStats(Long growerId) {
-        List<Shipment> shipments = shipmentRepository.findByGrowerIdOrderByProcessingDateDesc(growerId);
-        return calculateStats(shipments);
+        return shipmentRepository.getStatsByGrowerId(growerId);
     }
 
     public PartnerStatsDTO getLocationStats(Long locationId) {
-        List<Shipment> history = shipmentRepository.findByLocationIdOrderByProcessingDateDesc(locationId);
-        if (history.isEmpty()) return new PartnerStatsDTO(0.0, 0.0, 0.0, 0.0);
-        return calculateStats(history);
+        return shipmentRepository.getStatsByLocationId(locationId);
     }
 
     public Map<Long, PartnerStatsDTO> getAllPartnerStats() {
-        List<Shipment> all = shipmentRepository.findAll();
-        Map<Long, List<Shipment>> byId = all.stream()
-                .filter(s -> s.getLocation() != null && s.getLocation().getPartner() != null)
-                .collect(Collectors.groupingBy(s -> s.getLocation().getPartner().getId()));
-
-        return byId.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> calculateStats(e.getValue())));
+        return fetchAllStatsAsMap();
     }
 
     private double round(double value) {
-        if (Double.isNaN(value) || Double.isInfinite(value)) return 0.00;
         return Math.round(value * 100.0) / 100.0;
     }
 }
