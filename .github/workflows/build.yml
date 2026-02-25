@@ -36,38 +36,35 @@ jobs:
         working-directory: ./backend
         run: mvn clean package -DskipTests
 
-      # 3. KÖNYVTÁR ELŐKÉSZÍTÉS (A launcher mappában)
+      # 3. KÖNYVTÁR ELŐKÉSZÍTÉS A GYÖKÉRBEN
       - name: Prepare Backend Bin Folder
         shell: bash
-        run: mkdir -p launcher/backend_bin
+        run: mkdir -p backend_bin
 
       # 4. LAUNCH4J: JAR -> EXE KONVERTÁLÁS
       - name: Download and Run Launch4j
         shell: powershell
         run: |
-          # A curl.exe a -L kapcsolóval sikeresen átjut a SourceForge átirányításain!
           curl.exe -L -o launch4j.zip "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/launch4j-3.50-win32.zip/download"
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           
-          # A launch4j-nek odaadjuk a launcher mappában lévő XML-t
-          .\launch4j_dir\launch4j\launch4jc.exe launcher\poultry_manager.xml
+          # A launch4j-nek odaadjuk a gyökérben lévő XML-t
+          .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
 
-      # 5. ELECTRON PACKAGER: Végleges kliens mappa generálása a launcher-ben
+      # 5. ELECTRON PACKAGER: Végleges kliens mappa generálása
       - name: Build Electron App
-        working-directory: ./launcher
         run: |
           npm install
           npx electron-packager . BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=dist --overwrite
 
-      # 6. FRISSÍTŐ ZIP KÉSZÍTÉSE (A korábban kért háttérfrissítéshez)
+      # 6. FRISSÍTŐ ZIP KÉSZÍTÉSE (A háttérfrissítéshez)
       - name: Create Update ZIP
         shell: powershell
         run: |
-          Compress-Archive -Path "launcher/dist/BaromfiMenedzser-win32-x64/*" -DestinationPath "update.zip" -CompressionLevel Optimal
+          Compress-Archive -Path "dist/BaromfiMenedzser-win32-x64/*" -DestinationPath "update.zip" -CompressionLevel Optimal
 
       # 7. INNO SETUP: Telepítő generálása
       - name: Run Inno Setup Compiler
-        working-directory: ./launcher
         run: iscc poultry_manager_setup_script.iss
 
       # 8. FELTÖLTÉS GITHUB RELEASES-BE
@@ -75,7 +72,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            launcher/Output/BaromfiMenedzser_Telepito.exe
+            Output/BaromfiMenedzser_Telepito.exe
             update.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

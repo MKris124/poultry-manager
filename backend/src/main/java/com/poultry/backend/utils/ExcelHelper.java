@@ -32,6 +32,4 @@ public class ExcelHelper {
             return null;
         }
     }
-
-    public static void something(){}
 }
