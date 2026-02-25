@@ -41,6 +41,17 @@ jobs:
         shell: bash
         run: mkdir -p backend_bin
 
+      - name: Download and Bundle JRE 17
+        shell: powershell
+        run: |
+          # Hivatalos Temurin JRE 17 letöltése
+          Invoke-WebRequest -Uri "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jre/hotspot/normal/eclipse?project=jdk" -OutFile jre.zip
+          Expand-Archive -Path jre.zip -DestinationPath jre_temp
+          
+          # A kicsomagolt mappa (pl. jdk-17.0.x-jre) átnevezése és mozgatása a backend_bin/jre helyre
+          $jreDir = Get-ChildItem -Path jre_temp | Select-Object -First 1
+          Move-Item -Path $jreDir.FullName -Destination backend_bin\jre
+
       # 4. LAUNCH4J: JAR -> EXE KONVERTÁLÁS
       - name: Download and Run Launch4j
         shell: powershell
