@@ -25,6 +25,8 @@ jobs:
         run: |
           npm install --legacy-peer-deps
           npm run build -- --base-href ./
+          
+          # A lefordított Angular fájlokat áttesszük a Spring Boot static mappájába
           mkdir -p ../backend/src/main/resources/static
           if [ -d "dist/frontend/browser" ]; then
             cp -r dist/frontend/browser/* ../backend/src/main/resources/static/
@@ -65,25 +67,23 @@ jobs:
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
 
-      # 6. KARCSÚ ELECTRON CSOMAGOLÁS (Javított verzió)
+      # 6. KARCSÚ ELECTRON CSOMAGOLÁS (A Tökéletesített Hibrid)
       - name: Build Electron App
         shell: bash
         run: |
-          # 1. Tiszta munkakönyvtár létrehozása
+          # 1. Telepítjük az Electront a gyökérkönyvtárban (itt nincs 403 hiba!)
+          npm install electron @electron/packager --save-dev
+          
+          # 2. Létrehozzuk a tiszta mappát
           mkdir dist_temp
+          
+          # 3. CSAK a legszükségesebb fájlokat másoljuk át
           cp package.json main.js gooseicon.ico dist_temp/
           cp -r backend_bin dist_temp/
           
-          cd dist_temp
-          
-          # 2. Szükséges függőségek telepítése
-          # Az Electron-t muszáj telepíteni, különben a packager nem találja
-          npm install electron --save-prod
-          npm install @electron/packager --save-dev
-          
-          # 3. Csomagolás indítása
-          # Most már a frissített @electron/packager nevet használjuk
-          npx electron-packager . BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=../dist --overwrite
+          # 4. Csomagolás! A packager-nek megadjuk a ./dist_temp mappát.
+          # Így a felesleges forráskód kint marad, de az NPM sem fagy le!
+          npx @electron/packager ./dist_temp BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=./dist --overwrite
 
       # 7. FRISSÍTŐ ZIP ÉS TELEPÍTŐ
       - name: Create Update ZIP
