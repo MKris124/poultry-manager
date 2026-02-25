@@ -65,15 +65,24 @@ jobs:
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
 
-      # 6. KARCSÚ ELECTRON CSOMAGOLÁS (Csak a futtatható fájlok!)
+      # 6. KARCSÚ ELECTRON CSOMAGOLÁS (Javított verzió)
       - name: Build Electron App
         shell: bash
         run: |
+          # 1. Tiszta munkakönyvtár létrehozása
           mkdir dist_temp
           cp package.json main.js gooseicon.ico dist_temp/
           cp -r backend_bin dist_temp/
+          
           cd dist_temp
-          npm install --omit=dev
+          
+          # 2. Szükséges függőségek telepítése
+          # Az Electron-t muszáj telepíteni, különben a packager nem találja
+          npm install electron --save-prod
+          npm install @electron/packager --save-dev
+          
+          # 3. Csomagolás indítása
+          # Most már a frissített @electron/packager nevet használjuk
           npx electron-packager . BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=../dist --overwrite
 
       # 7. FRISSÍTŐ ZIP ÉS TELEPÍTŐ
