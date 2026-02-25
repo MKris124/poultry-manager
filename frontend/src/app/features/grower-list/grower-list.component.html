@@ -147,13 +147,6 @@
 </app-partner-sidebar>
 
 <app-grower-create-dialog #createDialog (onSave)="loadGrowers()"></app-grower-create-dialog>
-<app-partner-sidebar
-    [(visible)]="sidebarVisible"
-    [partner]="selectedGrower"
-    (closed)="onSidebarHide()">
-</app-partner-sidebar>
-
-<app-grower-create-dialog #createDialog (onSave)="loadGrowers()"></app-grower-create-dialog>
 
 <p-toast position="top-center"></p-toast>
-<p-confirmPopup></p-confirmPopup>
+<p-confirmpopup></p-confirmpopup>

@@ -1,10 +1,10 @@
-import { Component, EventEmitter, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Output, OnInit, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 import { PartnerService } from '../../services/partner.service';
 import { LocationService } from '../../services/location.service';
@@ -13,8 +13,9 @@ import { MessageService } from 'primeng/api';
 @Component({
   selector: 'app-partner-create-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, ButtonModule, InputTextModule, DropdownModule, TooltipModule],
-  templateUrl: './partner-create-dialog.component.html'
+  imports: [CommonModule, FormsModule, DialogModule, ButtonModule, InputTextModule, SelectModule, TooltipModule],
+  templateUrl: './partner-create-dialog.component.html',
+  providers: [MessageService]
 })
 export class PartnerCreateDialogComponent implements OnInit {
   @Output() onSave = new EventEmitter<any>();
@@ -27,7 +28,7 @@ export class PartnerCreateDialogComponent implements OnInit {
   constructor(
     private partnerService: PartnerService,
     private locationService: LocationService,
-    private messageService: MessageService
+    @Inject(MessageService) private messageService: MessageService
   ) {}
 
   ngOnInit() {

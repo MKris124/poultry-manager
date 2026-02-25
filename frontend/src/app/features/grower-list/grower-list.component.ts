@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -40,7 +40,8 @@ export class GrowerListComponent implements OnInit {
   constructor(
     private growerService: GrowerService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private cdr: ChangeDetectorRef // <--- HOZZÁADVA
   ) {}
 
   ngOnInit() {
@@ -50,12 +51,14 @@ export class GrowerListComponent implements OnInit {
   loadGrowers() {
     this.growerService.getAllGrowers().subscribe(data => {
       this.growers = data;
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
     });
   }
 
   editGrower(grower: any, event: Event) {
     event.stopPropagation();
     this.createDialog.edit(grower); 
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   deleteGrower(grower: any, event: Event) {
@@ -73,9 +76,11 @@ export class GrowerListComponent implements OnInit {
                 next: () => {
                     this.messageService.add({severity:'success', summary:'Törölve', detail: 'Nevelő sikeresen törölve.'});
                     this.loadGrowers();
+                    this.cdr.detectChanges(); // <--- HOZZÁADVA
                 },
                 error: () => {
                     this.messageService.add({severity:'error', summary:'Hiba', detail: 'Nem sikerült a törlés (lehet, hogy van hozzárendelt adat).'});
+                    this.cdr.detectChanges(); // <--- HOZZÁADVA
                 }
             });
         }
@@ -97,6 +102,7 @@ export class GrowerListComponent implements OnInit {
     }
 
     this.expandedRows = next; 
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   openGrowerStats(grower: any) {
@@ -107,9 +113,11 @@ export class GrowerListComponent implements OnInit {
         name: grower.name + (grower.city ? ` (${grower.city})` : '')
     };
     this.sidebarVisible = true;
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   onSidebarHide() {
     this.selectedGrower = null;
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 }

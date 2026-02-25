@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AnalyticsService } from '../../services/analytics.service';
@@ -31,7 +31,7 @@ import { PartnerSidebarComponent } from '../../shared/components/partner-sidebar
   `]
 })
 export class LeaderboardComponent implements OnInit {
-[x: string]: any;
+  [x: string]: any;
   
   rankedPartners: any[] = [];
   originalData: any[] = [];
@@ -57,12 +57,16 @@ export class LeaderboardComponent implements OnInit {
 
   currentCategory: string = 'liver'; 
 
-  constructor(private analyticsService: AnalyticsService) {}
+  constructor(
+    private analyticsService: AnalyticsService,
+    private cdr: ChangeDetectorRef // <--- HOZZÁADVA
+  ) {}
 
   ngOnInit() {
     this.analyticsService.getLeaderboard().subscribe(data => {
       this.originalData = data;
       this.updateSorting(); 
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
     });
   }
 
@@ -90,6 +94,8 @@ export class LeaderboardComponent implements OnInit {
         ...item,
         originalRank: index + 1
     }));
+    
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   isActiveColumn(col: string): boolean {
@@ -113,12 +119,13 @@ export class LeaderboardComponent implements OnInit {
     else next[id] = true;
 
     this.expandedRows = next;
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
-onRowClick(partner: any) {
-  if (partner.group) this.toggleGroup(partner);
-  else this.openPartnerStats(partner);
-}
+  onRowClick(partner: any) {
+    if (partner.group) this.toggleGroup(partner);
+    else this.openPartnerStats(partner);
+  }
 
   openPartnerStats(leaderboardItem: any) {
     if (leaderboardItem.partnerId) {
@@ -129,11 +136,13 @@ onRowClick(partner: any) {
         };
         this.sidebarVisible = true;
         this.disableSidebarAnim = false;
+        this.cdr.detectChanges(); // <--- HOZZÁADVA
     }
   }
 
   onSidebarHide() {
     this.selectedPartner = null;
     this.disableSidebarAnim = false;
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 }

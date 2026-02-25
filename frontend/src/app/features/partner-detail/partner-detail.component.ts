@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -17,9 +17,9 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SelectButtonModule } from 'primeng/selectbutton';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { GrowerService } from '../../services/grower.service';
-import { TabViewModule } from 'primeng/tabview';
+import { TabsModule } from 'primeng/tabs';
 import { PartnerStatsChartComponent } from '../partner-stats-chart/partner-stats-chart.component';
 
 @Component({
@@ -28,8 +28,8 @@ import { PartnerStatsChartComponent } from '../partner-stats-chart/partner-stats
   imports: [
     CommonModule, FormsModule, TableModule, ButtonModule, 
     InputTextModule, ToastModule, TooltipModule, MultiSelectModule,
-    ConfirmPopupModule, TrendChartComponent, SelectButtonModule, DropdownModule,
-    TabViewModule, PartnerStatsChartComponent
+    ConfirmPopupModule, TrendChartComponent, SelectButtonModule, SelectModule,
+    TabsModule, PartnerStatsChartComponent
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './partner-detail.component.html'
@@ -85,7 +85,8 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     private analyticsService: AnalyticsService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    private GrowerService: GrowerService
+    private GrowerService: GrowerService,
+    private cdr: ChangeDetectorRef // <--- HOZZÁADVA
   ) {}
     
   
@@ -136,6 +137,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
   loadGrowers() {
       this.GrowerService.getAllGrowers().subscribe(data => {
           this.growers = data;
+          this.cdr.detectChanges(); // <--- HOZZÁADVA
       });
     }
 
@@ -150,7 +152,10 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         this.shipmentService.getShipmentsByLocation(this.partner.locationId).subscribe(data => {
             this.processShipmentData(data);
         });
-        this.analyticsService.getLocationStats(this.partner.locationId).subscribe(s => this.selectedStats = s);
+        this.analyticsService.getLocationStats(this.partner.locationId).subscribe(s => {
+            this.selectedStats = s;
+            this.cdr.detectChanges(); // <--- HOZZÁADVA
+        });
 
     } else if (this.partner.isGroup) {
         this.shipmentService.getHistoryByPartners(this.partner.ids).subscribe(data => {
@@ -162,13 +167,19 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         this.shipmentService.getShipmentsByGrower(this.partner.growerId).subscribe(data => {
             this.processShipmentData(data);
         });
-        this.analyticsService.getGrowerStats(this.partner.growerId).subscribe(s => this.selectedStats = s);
+        this.analyticsService.getGrowerStats(this.partner.growerId).subscribe(s => {
+            this.selectedStats = s;
+            this.cdr.detectChanges(); // <--- HOZZÁADVA
+        });
 
     } else {
         this.shipmentService.getHistoryByPartner(this.partner.id).subscribe(data => {
             this.processShipmentData(data);
         });
-        this.analyticsService.getPartnerStats(this.partner.id).subscribe(s => this.selectedStats = s);
+        this.analyticsService.getPartnerStats(this.partner.id).subscribe(s => {
+            this.selectedStats = s;
+            this.cdr.detectChanges(); // <--- HOZZÁADVA
+        });
     }
   }
 
@@ -183,6 +194,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         };
       });
       this.shipments.forEach(s => this.clonedShipments[s.id] = { ...s });
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   calculateGroupStats() {
@@ -204,6 +216,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
           avgFatteningRate: countFattening ? (sumFattening / countFattening) : 0,
           avgMortalityRate: countMortalityRate ? (sumMortalityRate / countMortalityRate) : 0
       };
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   saveAll() {
@@ -224,6 +237,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     }
 
     this.isSaving = true;
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
     const observables = [];
 
     for (const ship of modifiedShips) {
@@ -260,6 +274,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
          this.messageService.add({severity:'success', summary:'Siker', detail: 'Sikeres mentés.'});
          this.loadData(); 
          this.isSaving = false;
+         this.cdr.detectChanges(); // <--- HOZZÁADVA
     },
     error: (err: HttpErrorResponse) => {
         this.isSaving = false;
@@ -274,6 +289,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
             detail: userMessage, 
             life: 8000 
         });
+        this.cdr.detectChanges(); // <--- HOZZÁADVA
     }
     });
   }
@@ -291,7 +307,10 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
                     this.messageService.add({ severity: 'success', summary: 'Törölve', detail: 'Sikeres törlés.' });
                     this.loadData();
                 },
-                error: () => this.messageService.add({ severity: 'error', summary: 'Hiba' })
+                error: () => {
+                    this.messageService.add({ severity: 'error', summary: 'Hiba' });
+                    this.cdr.detectChanges(); // <--- HOZZÁADVA
+                }
             });
         }
     });
@@ -328,11 +347,13 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     
     this.shipments = [newRow, ...this.shipments];
     this.newRowsSet.add(newRow); 
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   revertAll() { 
       this.loadData(); 
       this.messageService.add({severity:'info', summary:'Visszavonva'}); 
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   onRowCancel(ship: any, index: number) {
@@ -343,6 +364,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         this.shipments[index] = { ...this.clonedShipments[ship.id] };
         this.dirtyRowIds.delete(ship.id);
     }
+    this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   onCellEdit(ship: any) {
@@ -353,6 +375,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
       } else {
           this.dirtyRowIds.delete(ship.id);
       }
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   recalculateAvg(ship: any) {
@@ -395,6 +418,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
 
       const colFields = this.selectedColumns.map(c => c.field);
       localStorage.setItem('poultry_cols', JSON.stringify(colFields));
+      this.cdr.detectChanges(); // <--- HOZZÁADVA
   }
 
   getGrowerName(id: number): string {

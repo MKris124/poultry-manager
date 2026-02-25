@@ -1,14 +1,14 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { PartnerDetailComponent } from '../../../features/partner-detail/partner-detail.component';
 
 @Component({
   selector: 'app-partner-sidebar',
   standalone: true,
-  imports: [CommonModule, SidebarModule, PartnerDetailComponent],
+  imports: [CommonModule, DrawerModule, PartnerDetailComponent],
   template: `
-    <p-sidebar
+    <p-drawer
       *ngIf="visible"
       [(visible)]="visible"
       [transitionOptions]="disableSidebarAnim ? '0ms' : '150ms'"
@@ -37,7 +37,7 @@ import { PartnerDetailComponent } from '../../../features/partner-detail/partner
       <div class="mt-4">
         <app-partner-detail *ngIf="partner" [partner]="partner" [readOnly]="readOnly"></app-partner-detail>
       </div>
-    </p-sidebar>
+    </p-drawer>
   `
 })
 export class PartnerSidebarComponent {

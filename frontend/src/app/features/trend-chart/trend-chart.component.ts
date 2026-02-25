@@ -1,27 +1,27 @@
 import { Component, Input, OnChanges, SimpleChanges, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // Kell a ngModel-hez
+import { FormsModule } from '@angular/forms'; 
 import { ChartModule } from 'primeng/chart';
-import { DropdownModule } from 'primeng/dropdown'; // Kell a lenyílóhoz
+import { SelectModule } from 'primeng/select'; 
 
 @Component({
   selector: 'app-trend-chart',
   standalone: true,
-  imports: [CommonModule, ChartModule, DropdownModule, FormsModule],
+  imports: [CommonModule, ChartModule, SelectModule, FormsModule],
   template: `
     <div *ngIf="chartData" class="modern-card mb-5 p-3">
         <div class="flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h4 class="m-0 font-medium" style="color: var(--p-text-color)">
                 Éves Beszállítási Mennyiség (db) / Hét
             </h4>
-            <p-dropdown 
+            <p-select 
                 [options]="years" 
                 [(ngModel)]="selectedYear" 
                 (onChange)="initChart()" 
                 [style]="{'width':'150px'}" 
                 optionLabel="label"
                 optionValue="value">
-            </p-dropdown>
+            </p-select>
         </div>
         <div style="height: 300px;">
             <p-chart type="bar" [data]="chartData" [options]="chartOptions" height="100%"></p-chart>

@@ -39,19 +39,19 @@
                     
                     <div class="col-5">
                         <label class="text-xs text-500 mb-1 block">Megye</label>
-                        <p-dropdown 
+                        <p-select
                             [options]="counties" 
                             [(ngModel)]="loc.county" 
                             (onChange)="onCountyChange(loc)"
                             placeholder="Megye..." 
                             [style]="{'width':'100%'}"
                             appendTo="body">
-                        </p-dropdown>
+                        </p-select>
                     </div>
 
                     <div class="col-6">
                         <label class="text-xs text-500 mb-1 block">Település</label>
-                        <p-dropdown 
+                        <p-select 
                             [options]="loc.availableCities" 
                             [(ngModel)]="loc.city" 
                             [filter]="true"
@@ -62,7 +62,7 @@
                             emptyFilterMessage="Nincs találat"
                             [style]="{'width':'100%'}"
                             appendTo="body">
-                        </p-dropdown>
+                        </p-select>
                     </div>
 
                     <div class="col-1 flex justify-content-end">

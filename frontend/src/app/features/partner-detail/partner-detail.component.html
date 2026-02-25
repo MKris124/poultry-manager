@@ -1,10 +1,15 @@
 <div (click)="$event.stopPropagation()" class="h-full flex flex-column">
     
-    <p-tabView styleClass="custom-tabs">
+    <p-tabs value="0" styleClass="custom-tabs">
 
-        <p-tabPanel header="Adatok" leftIcon="pi pi-table">
-            <ng-template pTemplate="content">
-                
+        <p-tablist>
+            <p-tab value="0"><i class="pi pi-table mr-2"></i> Adatok</p-tab>
+            <p-tab value="1"><i class="pi pi-chart-line mr-2"></i> Elemzés & Trendek</p-tab>
+        </p-tablist>
+
+        <p-tabpanels>
+            
+            <p-tabpanel value="0">
                 <div *ngIf="selectedStats || shipments.length" class="grid mb-5 mt-2">
                     <div class="col-6 md:col-3">
                         <div class="modern-card p-3 h-full stat-border-green">
@@ -39,6 +44,7 @@
                         </div>
                     </div>
                 </div>
+                
                 <div class="mt-3">
                     <app-trend-chart [shipments]="shipments"></app-trend-chart>
                 </div>
@@ -96,7 +102,7 @@
                     Nincs megjeleníthető adat. <span *ngIf="!readOnly">Kattints az "Új" gombra új felvételéhez.</span>
                 </div>
 
-                <p-confirmPopup></p-confirmPopup> 
+                <p-confirmpopup></p-confirmpopup> 
                 
                 <div *ngIf="shipments.length" class="modern-card overflow-hidden">
                     
@@ -149,7 +155,7 @@
                                 <td *ngIf="isColVisible('growerId')" pEditableColumn [pEditableColumnDisabled]="readOnly">
                                     <p-cellEditor>
                                         <ng-template pTemplate="input">
-                                            <p-dropdown [options]="growers" 
+                                            <p-select [options]="growers" 
                                                         [(ngModel)]="ship.growerId" 
                                                         optionLabel="name" 
                                                         optionValue="id"
@@ -160,9 +166,8 @@
                                                         [filter]="true" 
                                                         filterBy="name"
                                                         scrollHeight="200px" 
-                                                        [autoDisplayFirst]="false"
                                                         [ngClass]="{'ng-invalid ng-dirty': !ship.growerId}">
-                                            </p-dropdown>
+                                            </p-select>
                                         </ng-template>
                                     
                                         <ng-template pTemplate="output">
@@ -256,8 +261,8 @@
 
                                 <td *ngIf="isColVisible('netAvgWeight')" class="text-right text-blue-400 font-bold bg-blue-900 bg-opacity-10">
                                     {{ (ship.quantity - (ship.mortalityCount || 0)) > 0 
-                                       ? ((ship.netWeight || 0) / (ship.quantity - (ship.mortalityCount || 0)) | number:'1.2-2') 
-                                       : '0.00' 
+                                        ? ((ship.netWeight || 0) / (ship.quantity - (ship.mortalityCount || 0)) | number:'1.2-2') 
+                                        : '0.00' 
                                     }}
                                 </td>
 
@@ -290,8 +295,8 @@
                                 <td *ngIf="isColVisible('fatteningRate')" class="text-right font-bold text-orange-500 bg-blue-900 bg-opacity-10">
                                     <ng-container *ngIf="ship.quantity > 0 && (ship.quantity - (ship.mortalityCount || 0)) > 0; else noRate">
                                         {{ 
-                                           ((ship.netWeight / (ship.quantity - (ship.mortalityCount || 0))) - 
-                                           (ship.totalWeight / ship.quantity)) | number:'1.2-2' 
+                                            ((ship.netWeight / (ship.quantity - (ship.mortalityCount || 0))) - 
+                                            (ship.totalWeight / ship.quantity)) | number:'1.2-2' 
                                         }}
                                     </ng-container>
                                     <ng-template #noRate>0.00</ng-template>
@@ -313,8 +318,8 @@
                                 
                                 <td *ngIf="isColVisible('mortalityRate')" class="text-right text-blue-400 font-bold bg-blue-900 bg-opacity-10">
                                     {{ (ship.quantity > 0 && ship.mortalityCount) 
-                                       ? ((ship.mortalityCount / ship.quantity) * 100 | number:'1.2-2') 
-                                       : '0.00' 
+                                        ? ((ship.mortalityCount / ship.quantity) * 100 | number:'1.2-2') 
+                                        : '0.00' 
                                     }}%
                                 </td>
 
@@ -326,19 +331,17 @@
                         </ng-template>
                     </p-table>
                 </div>
-            </ng-template>
-        </p-tabPanel>
+            </p-tabpanel>
 
-        <p-tabPanel header="Elemzés & Trendek" leftIcon="pi pi-chart-line">
-            <ng-template pTemplate="content">
+            <p-tabpanel value="1">
                 <div class="mt-3">
                     <app-partner-stats-chart 
                         [shipments]="shipments"
                         [label]="'Partner Elemzés'">
                     </app-partner-stats-chart>
                 </div>
-            </ng-template>
-        </p-tabPanel>
+            </p-tabpanel>
 
-    </p-tabView>
+        </p-tabpanels>
+    </p-tabs>
 </div>
