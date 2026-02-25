@@ -71,12 +71,6 @@ function createWindow() {
         mainWindow.show();
         mainWindow.maximize();
         
-        // UI frissítés kikényszerítése a PrimeNG fülek miatt
-        setTimeout(() => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.executeJavaScript("window.dispatchEvent(new Event('resize'));");
-            }
-        }, 300);
 
         // +++ ITT INDÍTJUK EL A FRISSÍTÉS KERESÉSÉT +++
         setTimeout(checkForUpdates, 3000); // Adunk neki 3 mp-et, hogy nyugodtan betöltsön a felület

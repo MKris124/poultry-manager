@@ -18,7 +18,7 @@ Source: "gooseicon.ico"; DestDir: "{app}"; DestName: "app_icon.ico"; Flags: igno
 
 [Icons]
 Name: "{autodesktop}\Baromfi Menedzser"; \
-    Filename: "{app}\baromfi-menedzser.exe"; \
+    Filename: "{app}\BaromfiMenedzser.exe; \
     IconFilename: "{app}\app_icon.ico"
 
 Name: "{group}\Baromfi Menedzser"; \

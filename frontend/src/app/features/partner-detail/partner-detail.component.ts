@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -22,6 +22,7 @@ import { GrowerService } from '../../services/grower.service';
 import { TabsModule } from 'primeng/tabs';
 import { PartnerStatsChartComponent } from '../partner-stats-chart/partner-stats-chart.component';
 
+
 @Component({
   selector: 'app-partner-detail',
   standalone: true,
@@ -34,7 +35,7 @@ import { PartnerStatsChartComponent } from '../partner-stats-chart/partner-stats
   providers: [MessageService, ConfirmationService],
   templateUrl: './partner-detail.component.html'
 })
-export class PartnerDetailComponent implements OnChanges, OnInit {
+export class PartnerDetailComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() partner: any;
   @Input() readOnly: boolean = false;
 
@@ -86,7 +87,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private GrowerService: GrowerService,
-    private cdr: ChangeDetectorRef // <--- HOZZÁADVA
+    private cdr: ChangeDetectorRef
   ) {}
     
   
@@ -117,6 +118,16 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
       }
     }
 
+  ngAfterViewInit() {
+      this.forcePrimeNgTabsRepaint();
+  }
+
+  forcePrimeNgTabsRepaint() {
+      setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+      }, 100);
+  }
+
   ngOnChanges(changes: SimpleChanges) {
     if (changes['partner'] && this.partner) {
 
@@ -137,7 +148,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
   loadGrowers() {
       this.GrowerService.getAllGrowers().subscribe(data => {
           this.growers = data;
-          this.cdr.detectChanges(); // <--- HOZZÁADVA
+          this.cdr.detectChanges(); 
       });
     }
 
@@ -154,7 +165,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         });
         this.analyticsService.getLocationStats(this.partner.locationId).subscribe(s => {
             this.selectedStats = s;
-            this.cdr.detectChanges(); // <--- HOZZÁADVA
+            this.cdr.detectChanges();
         });
 
     } else if (this.partner.isGroup) {
@@ -169,7 +180,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         });
         this.analyticsService.getGrowerStats(this.partner.growerId).subscribe(s => {
             this.selectedStats = s;
-            this.cdr.detectChanges(); // <--- HOZZÁADVA
+            this.cdr.detectChanges();
         });
 
     } else {
@@ -178,7 +189,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         });
         this.analyticsService.getPartnerStats(this.partner.id).subscribe(s => {
             this.selectedStats = s;
-            this.cdr.detectChanges(); // <--- HOZZÁADVA
+            this.cdr.detectChanges();
         });
     }
   }
@@ -194,7 +205,8 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         };
       });
       this.shipments.forEach(s => this.clonedShipments[s.id] = { ...s });
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges();
+      this.forcePrimeNgTabsRepaint();
   }
 
   calculateGroupStats() {
@@ -216,7 +228,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
           avgFatteningRate: countFattening ? (sumFattening / countFattening) : 0,
           avgMortalityRate: countMortalityRate ? (sumMortalityRate / countMortalityRate) : 0
       };
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges(); 
   }
 
   saveAll() {
@@ -237,7 +249,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     }
 
     this.isSaving = true;
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
     const observables = [];
 
     for (const ship of modifiedShips) {
@@ -274,7 +286,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
          this.messageService.add({severity:'success', summary:'Siker', detail: 'Sikeres mentés.'});
          this.loadData(); 
          this.isSaving = false;
-         this.cdr.detectChanges(); // <--- HOZZÁADVA
+         this.cdr.detectChanges();
     },
     error: (err: HttpErrorResponse) => {
         this.isSaving = false;
@@ -289,7 +301,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
             detail: userMessage, 
             life: 8000 
         });
-        this.cdr.detectChanges(); // <--- HOZZÁADVA
+        this.cdr.detectChanges();
     }
     });
   }
@@ -309,7 +321,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
                 },
                 error: () => {
                     this.messageService.add({ severity: 'error', summary: 'Hiba' });
-                    this.cdr.detectChanges(); // <--- HOZZÁADVA
+                    this.cdr.detectChanges();
                 }
             });
         }
@@ -347,13 +359,13 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
     
     this.shipments = [newRow, ...this.shipments];
     this.newRowsSet.add(newRow); 
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   revertAll() { 
       this.loadData(); 
       this.messageService.add({severity:'info', summary:'Visszavonva'}); 
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges();
   }
 
   onRowCancel(ship: any, index: number) {
@@ -364,7 +376,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
         this.shipments[index] = { ...this.clonedShipments[ship.id] };
         this.dirtyRowIds.delete(ship.id);
     }
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   onCellEdit(ship: any) {
@@ -375,7 +387,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
       } else {
           this.dirtyRowIds.delete(ship.id);
       }
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges();
   }
 
   recalculateAvg(ship: any) {
