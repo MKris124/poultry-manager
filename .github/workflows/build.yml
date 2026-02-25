@@ -21,9 +21,16 @@ jobs:
           
       - name: Build Frontend (Angular)
         working-directory: ./frontend
+        shell: bash
         run: |
           npm install --legacy-peer-deps
-          npm run build -- --output-path="../backend/src/main/resources/static" --base-href ./
+          npm run build -- --base-href ./
+          mkdir -p ../backend/src/main/resources/static
+          if [ -d "dist/frontend/browser" ]; then
+            cp -r dist/frontend/browser/* ../backend/src/main/resources/static/
+          else
+            cp -r dist/frontend/* ../backend/src/main/resources/static/
+          fi
 
       # 2. JAVA ÉS BACKEND BUILD
       - name: Set up JDK 17
@@ -36,50 +43,48 @@ jobs:
         working-directory: ./backend
         run: mvn clean package -DskipTests
 
-      # 3. KÖNYVTÁR ELŐKÉSZÍTÉS A GYÖKÉRBEN
-      - name: Prepare Backend Bin Folder
+      # 3. KÖNYVTÁR ELŐKÉSZÍTÉS
+      - name: Prepare Folders
         shell: bash
         run: mkdir -p backend_bin
         
-      # +++ ÚJ LÉPÉS: JRE 17 LETÖLTÉSE ÉS BEÁGYAZÁSA +++
-      - name: Download and Bundle JRE 17
+      # 4. JRE 17 BEÁGYAZÁSA
+      - name: Download JRE 17
         shell: powershell
         run: |
-          # Hivatalos Temurin JRE 17 letöltése
           Invoke-WebRequest -Uri "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jre/hotspot/normal/eclipse?project=jdk" -OutFile jre.zip
           Expand-Archive -Path jre.zip -DestinationPath jre_temp
-          
-          # A kicsomagolt mappa (pl. jdk-17.0.x-jre) átnevezése és mozgatása a backend_bin/jre helyre
           $jreDir = Get-ChildItem -Path jre_temp | Select-Object -First 1
           Move-Item -Path $jreDir.FullName -Destination backend_bin\jre
 
-      # 4. LAUNCH4J: JAR -> EXE KONVERTÁLÁS
-      - name: Download and Run Launch4j
+      # 5. LAUNCH4J: JAR -> EXE
+      - name: Run Launch4j
         shell: powershell
         run: |
           curl.exe -L -o launch4j.zip "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/launch4j-3.50-win32.zip/download"
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
-          
-          # A launch4j-nek odaadjuk a gyökérben lévő XML-t
           .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
 
-      # 5. ELECTRON PACKAGER: Végleges kliens mappa generálása
+      # 6. KARCSÚ ELECTRON CSOMAGOLÁS (Csak a futtatható fájlok!)
       - name: Build Electron App
+        shell: bash
         run: |
-          npm install
-          npx electron-packager . BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=dist --overwrite
+          mkdir dist_temp
+          cp package.json main.js gooseicon.ico dist_temp/
+          cp -r backend_bin dist_temp/
+          cd dist_temp
+          npm install --omit=dev
+          npx electron-packager . BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=../dist --overwrite
 
-      # 6. FRISSÍTŐ ZIP KÉSZÍTÉSE (A háttérfrissítéshez)
+      # 7. FRISSÍTŐ ZIP ÉS TELEPÍTŐ
       - name: Create Update ZIP
         shell: powershell
-        run: |
-          Compress-Archive -Path "dist/BaromfiMenedzser-win32-x64/*" -DestinationPath "update.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "dist/BaromfiMenedzser-win32-x64/*" -DestinationPath "update.zip"
 
-      # 7. INNO SETUP: Telepítő generálása
-      - name: Run Inno Setup Compiler
+      - name: Run Inno Setup
         run: iscc poultry_manager_setup_script.iss
 
-      # 8. FELTÖLTÉS GITHUB RELEASES-BE
+      # 8. RELEASE
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
