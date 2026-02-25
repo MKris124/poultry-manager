@@ -21,7 +21,6 @@ jobs:
           
       - name: Build Frontend (Angular)
         working-directory: ./frontend
-        # Lefordítja az Angulart egyből a Spring Boot static mappájába
         run: |
           npm ci
           npm run build -- --output-path="../backend/src/main/resources/static" --base-href ./
@@ -37,29 +36,24 @@ jobs:
         working-directory: ./backend
         run: mvn clean package -DskipTests
 
-      # 3. ELECTRON MUNKAMAPPA ELŐKÉSZÍTÉSE
-      - name: Prepare Electron Directory
+      # 3. KÖNYVTÁR ELŐKÉSZÍTÉS (A launcher mappában)
+      - name: Prepare Backend Bin Folder
         shell: bash
-        run: |
-          mkdir -p build_temp/backend_bin
-          cp main.js build_temp/
-          cp package.json build_temp/
-          cp gooseicon.ico build_temp/
+        run: mkdir -p launcher/backend_bin
 
       # 4. LAUNCH4J: JAR -> EXE KONVERTÁLÁS
       - name: Download and Run Launch4j
         shell: powershell
         run: |
-          # Launch4j parancssoros verziójának letöltése
           Invoke-WebRequest -Uri "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/launch4j-3.50-win32.zip/download" -OutFile launch4j.zip
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           
-          # Futtatjuk a módosított XML-eddel
-          .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
+          # A launch4j-nek odaadjuk a launcher mappában lévő XML-t
+          .\launch4j_dir\launch4j\launch4jc.exe launcher\puoultry_manager.xml
 
-      # 5. ELECTRON PACKAGER: Végleges kliens mappa generálása
+      # 5. ELECTRON PACKAGER: Végleges kliens mappa generálása a launcher-ben
       - name: Build Electron App
-        working-directory: ./build_temp
+        working-directory: ./launcher
         run: |
           npm install
           npx electron-packager . BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=dist --overwrite
@@ -68,10 +62,11 @@ jobs:
       - name: Create Update ZIP
         shell: powershell
         run: |
-          Compress-Archive -Path "build_temp/dist/BaromfiMenedzser-win32-x64/*" -DestinationPath "update.zip" -CompressionLevel Optimal
+          Compress-Archive -Path "launcher/dist/BaromfiMenedzser-win32-x64/*" -DestinationPath "update.zip" -CompressionLevel Optimal
 
       # 7. INNO SETUP: Telepítő generálása
       - name: Run Inno Setup Compiler
+        working-directory: ./launcher
         run: iscc poultry_manager_setup_script.iss
 
       # 8. FELTÖLTÉS GITHUB RELEASES-BE
@@ -79,7 +74,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            Output/BaromfiMenedzser_Telepito.exe
+            launcher/Output/BaromfiMenedzser_Telepito.exe
             update.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

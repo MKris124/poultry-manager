@@ -13,8 +13,7 @@ PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
 
 [Files]
-; Relatív útvonal az Electron által kidobott kész fájlokhoz
-Source: "build_temp\dist\BaromfiMenedzser-win32-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\BaromfiMenedzser-win32-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "gooseicon.ico"; DestDir: "{app}"; DestName: "app_icon.ico"; Flags: ignoreversion
 
 [Icons]
