@@ -50,7 +50,7 @@ jobs:
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           
           # A launch4j-nek odaadjuk a launcher mappában lévő XML-t
-          .\launch4j_dir\launch4j\launch4jc.exe launcher\puoultry_manager.xml
+          .\launch4j_dir\launch4j\launch4jc.exe launcher\poultry_manager.xml
 
       # 5. ELECTRON PACKAGER: Végleges kliens mappa generálása a launcher-ben
       - name: Build Electron App
