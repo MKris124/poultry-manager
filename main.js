@@ -194,8 +194,8 @@ function promptForUpdate(downloadUrl, latestVersion) {
 function downloadAndInstallUpdate(downloadUrl) {
     dialog.showMessageBox(mainWindow, {
         type: 'info',
-        title: 'Frissítés folyamatban...',
-        message: 'A frissítés letöltése és telepítése megkezdődött. A program hamarosan újraindul...',
+        title: 'Frissítés letöltése...',
+        message: 'A program a háttérben letölti a fájlokat. Ez az internetedtől függően pár másodperc. Kérlek várj a rendszergazdai ablakra!',
         buttons: ['Rendben']
     });
 
@@ -205,8 +205,9 @@ function downloadAndInstallUpdate(downloadUrl) {
     const appPath = path.resolve(__dirname, '..', '..'); // A Program Files mappája
     const batPath = path.join(tempDir, 'update_baromfi.bat');
 
-    // 1. Letöltés és kicsomagolás PowerShell segítségével
+    // 1. Letöltés és kicsomagolás kényszerített TLS 1.2-vel
     const psCommand = `
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri "${downloadUrl}" -OutFile "${zipPath}"
         if (Test-Path "${extractPath}") { Remove-Item "${extractPath}" -Recurse -Force }
         Expand-Archive -Path "${zipPath}" -DestinationPath "${extractPath}" -Force
@@ -214,24 +215,56 @@ function downloadAndInstallUpdate(downloadUrl) {
 
     exec(`powershell -Command "${psCommand}"`, (error) => {
         if (error) {
-            dialog.showErrorBox('Hiba', 'Nem sikerült letölteni a frissítést.');
+            dialog.showErrorBox('Hiba', `Nem sikerült letölteni a GitHubról!\n\n${error.message}`);
             return;
         }
 
-        // 2. Létrehozunk egy háttérben futó .bat fájlt, ami felülírja a fájlokat
+        // 2. A LÁTHATÓ Frissítő Szkript (Nincs többé elrejtve!)
         const batContent = `
 @echo off
+title Baromfi Menedzser Automata Frissito
+color 0A
+echo ===================================================
+echo BAROMFI MENEDZSER FRISSITES FOLYAMATBAN...
+echo ===================================================
+echo.
+echo Kerlek varj, amig a program leall (3 masodperc)...
 timeout /t 3 /nobreak > NUL
+
+echo Folyamatok kikenyszeritett bezarasa...
+taskkill /F /IM "BaromfiMenedzser.exe" > NUL 2>&1
+taskkill /F /IM "java.exe" > NUL 2>&1
+timeout /t 2 /nobreak > NUL
+
+echo.
+echo Fajlok felulirasa a Program Files mappaban...
 xcopy /s /y /e "${extractPath}\\*" "${appPath}\\"
+
+if %errorlevel% neq 0 (
+    color 4F
+    echo.
+    echo ===================================================
+    echo HIBA TORTENT A MASOLAS KOZBEN!
+    echo ===================================================
+    echo Valoszinuleg a program meg fut a hatterben, vagy nincs jogod felulirni a mappat.
+    echo Kerlek fotozd le ezt a kepernyot!
+    pause
+    exit
+)
+
+echo.
+echo Frissites sikeres! Ujrainditas...
 start "" "${appPath}\\BaromfiMenedzser.exe"
 del "%~f0"
         `;
+        
         fs.writeFileSync(batPath, batContent);
 
-        // 3. Elindítjuk a .bat fájlt Rendszergazdaként (hogy felül tudja írni a Program Files-t), majd kilépünk
-        const psRunAs = `Start-Process -FilePath "${batPath}" -WindowStyle Hidden -Verb RunAs`;
+        // 3. Futtatás RENDSZERGZADAKÉNT, LÁTHATÓ ablakkal
+        const psRunAs = `Start-Process -FilePath "${batPath}" -Verb RunAs`;
         exec(`powershell -Command "${psRunAs}"`);
         
+        // 4. Electron kilépése
         app.quit();
     });
 }
