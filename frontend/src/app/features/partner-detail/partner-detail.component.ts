@@ -44,6 +44,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit, AfterViewInit 
   clonedShipments: { [s: string]: any } = {};
   selectedStats: any = null;
   isSaving: boolean = false;
+  showTabs: boolean = false;
 
   dirtyRowIds: Set<number> = new Set();
   newRowsSet: Set<any> = new Set();
@@ -131,6 +132,8 @@ export class PartnerDetailComponent implements OnChanges, OnInit, AfterViewInit 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['partner'] && this.partner) {
 
+        this.showTabs = false;
+
       if (!this._selectedColumns || this._selectedColumns.length === 0) {
            const savedCols = localStorage.getItem('poultry_cols');
            if (savedCols) {
@@ -142,6 +145,11 @@ export class PartnerDetailComponent implements OnChanges, OnInit, AfterViewInit 
       }
       this.loadData();
       this.loadGrowers();
+
+      setTimeout(() => {
+          this.showTabs = true;
+          this.cdr.detectChanges();
+      }, 150);
     }
   }
 

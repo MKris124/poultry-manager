@@ -18,6 +18,15 @@ export class AppComponent implements OnInit {
   isDarkMode: boolean = false;
 
   ngOnInit() {
+    if (!sessionStorage.getItem('first_reload_done')) {
+      
+      sessionStorage.setItem('first_reload_done', 'true');
+      
+      window.location.reload();
+      
+      return; 
+    }
+
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
       this.isDarkMode = true;

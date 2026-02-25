@@ -23,17 +23,12 @@ jobs:
         working-directory: ./frontend
         shell: bash
         run: |
-          # 1. Erőszakos gyorsítótár ürítés a sérült letöltések miatt
           npm cache clean --force
           
-          # 2. Telepítés felesleges ellenőrzések nélkül (kisebb esély a Windows EPERM hibára)
-          # A "||" azt jelenti: ha elszáll, azonnal próbálja meg újra!
           npm install --legacy-peer-deps --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
           
-          # 3. Frontend lefordítása
           npm run build -- --base-href ./
           
-          # 4. Fájlok átmozgatása a backendhez
           mkdir -p ../backend/src/main/resources/static
           if [ -d "dist/frontend/browser" ]; then
             cp -r dist/frontend/browser/* ../backend/src/main/resources/static/
@@ -84,15 +79,11 @@ jobs:
           cp package.json main.js gooseicon.ico splash.html dist_temp/
           cp -r backend_bin dist_temp/
           
-          # +++ ÚJ: AUTOMATIKUS VERZIÓSZÁM BEÁLLÍTÁS +++
-          # 1. Kinyerjük a verziót a tag-ből (pl. "v1.0.9" -> "1.0.9")
           VERSION=${GITHUB_REF_NAME#v}
           echo "Csomagolás verziója: $VERSION"
           
-          # 2. Egy mini JS szkripttel átírjuk a bemásolt package.json "version" mezőjét
           node -e "let p=require('./dist_temp/package.json'); p.version='$VERSION'; require('fs').writeFileSync('./dist_temp/package.json', JSON.stringify(p, null, 2));"
           
-          # 3. Jöhet a csomagolás! Az Electron már a frissített verziószámot látja.
           npx @electron/packager ./dist_temp BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=./dist --overwrite
 
       # 7. FRISSÍTŐ ZIP ÉS TELEPÍTŐ

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Output, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DialogModule } from 'primeng/dialog';
@@ -23,12 +23,12 @@ export class ExcelImportDialogComponent {
   visible: boolean = false;
   isUploading: boolean = false;
   
-
   previewRows: any[] | null = null;
 
   constructor(
     private messageService: MessageService,
-    private importService: ImportService
+    private importService: ImportService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   show() {
@@ -58,12 +58,16 @@ export class ExcelImportDialogComponent {
         if (this.previewRows.length === 0) {
            this.messageService.add({severity: 'warn', summary: 'Figyelem', detail: 'A fájl üres vagy nem tartalmaz adatot.'});
         }
+        
+        this.cdr.detectChanges(); 
       },
       error: (err: HttpErrorResponse) => {
         this.isUploading = false;
         console.error(err);
         this.messageService.add({severity: 'error', summary: 'Hiba', detail: 'Hiba a fájl feldolgozásakor (Előnézet).'});
         this.fileUpload.clear();
+        
+        this.cdr.detectChanges(); 
       }
     });
   }
@@ -81,6 +85,7 @@ export class ExcelImportDialogComponent {
     }
 
     this.isUploading = true;
+    this.cdr.detectChanges();
 
     this.importService.saveImportedRows(validData).subscribe({
         next: (response: any) => {
@@ -94,12 +99,14 @@ export class ExcelImportDialogComponent {
             });
 
             this.onClosed.emit();
+            this.cdr.detectChanges();
         },
         error: (err: HttpErrorResponse) => {
             this.isUploading = false;
             console.error(err);
             const msg = err.error?.message || 'Hiba a mentés során.';
             this.messageService.add({severity: 'error', summary: 'Hiba', detail: msg});
+            this.cdr.detectChanges();
         }
     });
   }
@@ -111,6 +118,4 @@ export class ExcelImportDialogComponent {
   getValidCount(): number {
     return this.previewRows ? this.previewRows.filter((r: any) => r.valid).length : 0;
   }
-
-  
 }
