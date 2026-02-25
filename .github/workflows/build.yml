@@ -22,7 +22,7 @@ jobs:
       - name: Build Frontend (Angular)
         working-directory: ./frontend
         run: |
-          npm ci
+          npm install --legacy-peer-deps
           npm run build -- --output-path="../backend/src/main/resources/static" --base-href ./
 
       # 2. JAVA ÉS BACKEND BUILD
@@ -40,7 +40,8 @@ jobs:
       - name: Prepare Backend Bin Folder
         shell: bash
         run: mkdir -p backend_bin
-
+        
+      # +++ ÚJ LÉPÉS: JRE 17 LETÖLTÉSE ÉS BEÁGYAZÁSA +++
       - name: Download and Bundle JRE 17
         shell: powershell
         run: |
