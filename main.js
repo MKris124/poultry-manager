@@ -20,21 +20,25 @@ function createWindow() {
     mainWindow.setMenuBarVisibility(false);
 
     let springArgs = [];
+    let backendPath;
+    let workingDirectory;
 
     if (app.isPackaged) {
-        backendPath = path.join(process.resourcesPath, 'backend_bin', 'BaromfiMenedzser.exe');
+        // JAVÍTVA: process.resourcesPath helyett __dirname!
+        // Így a main.js pontosan maga mellett fogja keresni a backend_bin mappát.
+        backendPath = path.join(__dirname, 'backend_bin', 'BaromfiMenedzser.exe');
         
-        workingDirectory = path.resolve(process.resourcesPath, '..');
+        // JAVÍTVA: A munkakönyvtár legyen az exe saját mappája
+        workingDirectory = path.join(__dirname, 'backend_bin');
         springArgs = ['--spring.profiles.active=prod']; 
         
     } else {
         backendPath = path.join(__dirname, 'backend_bin', 'BaromfiMenedzser.exe');
-        workingDirectory = __dirname;
+        workingDirectory = path.join(__dirname, 'backend_bin');
         springArgs = ['--spring.profiles.active=desktop'];
     }
 
     console.log("Inditasi profil: " + springArgs[0]);
-
     console.log("Backend inditasa innen: " + backendPath);
     console.log("Munkakonyvtar (DB helye): " + workingDirectory);
 
@@ -44,6 +48,7 @@ function createWindow() {
 
     backendProcess.stdout.on('data', (data) => console.log(`Log: ${data}`));
     backendProcess.stderr.on('data', (data) => console.error(`Err: ${data}`));
+    
     const loadApp = () => {
         mainWindow.loadURL('http://localhost:8080')
             .then(() => {
