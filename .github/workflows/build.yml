@@ -45,7 +45,8 @@ jobs:
       - name: Download and Run Launch4j
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/launch4j-3.50-win32.zip/download" -OutFile launch4j.zip
+          # Közvetlen letöltési link használata SourceForge-ról
+          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/launch4j/launch4j-3/3.50/launch4j-3.50-win32.zip" -OutFile launch4j.zip
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           
           # A launch4j-nek odaadjuk a launcher mappában lévő XML-t
