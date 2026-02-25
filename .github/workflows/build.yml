@@ -74,22 +74,17 @@ jobs:
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
 
-      # 6. KARCSÚ ELECTRON CSOMAGOLÁS (A Tökéletesített Hibrid)
+      # 6. KARCSÚ ELECTRON CSOMAGOLÁS
       - name: Build Electron App
         shell: bash
         run: |
-          # 1. Telepítjük az Electront a gyökérkönyvtárban (itt nincs 403 hiba!)
           npm install electron @electron/packager --save-dev
-          
-          # 2. Létrehozzuk a tiszta mappát
           mkdir dist_temp
           
-          # 3. CSAK a legszükségesebb fájlokat másoljuk át
-          cp package.json main.js gooseicon.ico dist_temp/
-          cp -r backend_bin dist_temp/
+          # Hozzáadtuk a splash.html-t a listához!
+          cp package.json main.js gooseicon.ico splash.html dist_temp/
           
-          # 4. Csomagolás! A packager-nek megadjuk a ./dist_temp mappát.
-          # Így a felesleges forráskód kint marad, de az NPM sem fagy le!
+          cp -r backend_bin dist_temp/
           npx @electron/packager ./dist_temp BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=./dist --overwrite
 
       # 7. FRISSÍTŐ ZIP ÉS TELEPÍTŐ

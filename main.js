@@ -3,13 +3,27 @@ const path = require('path');
 const { spawn, execSync } = require('child_process');
 
 let mainWindow;
+let splashWindow; // ÚJ: Töltőképernyő változó
 let backendProcess;
 
 function createWindow() {
+    // 1. TÖLTŐKÉPERNYŐ LÉTREHOZÁSA (Azonnal megjelenik)
+    splashWindow = new BrowserWindow({
+        width: 450,
+        height: 300,
+        frame: false,       // Ne legyen Windows ablakkerete (szebb így)
+        alwaysOnTop: true,  // Maradjon legfelül, amíg tölt
+        center: true,
+        transparent: false,
+        icon: path.join(__dirname, 'gooseicon.ico')
+    });
+    splashWindow.loadFile('splash.html');
+
+    // 2. FŐABLAK LÉTREHOZÁSA (De egyelőre rejtve tartjuk!)
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
-        show: false,
+        show: false, // FONTOS: Rejtve indul!
         title: "Baromfi Menedzser",
         icon: path.join(__dirname, 'gooseicon.ico'), 
         webPreferences: {
@@ -24,43 +38,54 @@ function createWindow() {
     let workingDirectory;
 
     if (app.isPackaged) {
-        // JAVÍTVA: process.resourcesPath helyett __dirname!
-        // Így a main.js pontosan maga mellett fogja keresni a backend_bin mappát.
         backendPath = path.join(__dirname, 'backend_bin', 'BaromfiMenedzser.exe');
-        
-        // JAVÍTVA: A munkakönyvtár legyen az exe saját mappája
         workingDirectory = path.join(__dirname, 'backend_bin');
         springArgs = ['--spring.profiles.active=prod']; 
-        
     } else {
         backendPath = path.join(__dirname, 'backend_bin', 'BaromfiMenedzser.exe');
         workingDirectory = path.join(__dirname, 'backend_bin');
         springArgs = ['--spring.profiles.active=desktop'];
     }
 
-    console.log("Inditasi profil: " + springArgs[0]);
-    console.log("Backend inditasa innen: " + backendPath);
-    console.log("Munkakonyvtar (DB helye): " + workingDirectory);
-
     backendProcess = spawn(backendPath, springArgs, {
         cwd: workingDirectory
     });
 
-    backendProcess.stdout.on('data', (data) => console.log(`Log: ${data}`));
-    backendProcess.stderr.on('data', (data) => console.error(`Err: ${data}`));
-    
+    let isAppLoaded = false;
+
     const loadApp = () => {
+        if (isAppLoaded) return;
+        isAppLoaded = true;
+
         mainWindow.loadURL('http://localhost:8080')
-            .then(() => {
-                mainWindow.show(); 
-                mainWindow.maximize();
-            })
             .catch((err) => {
-                setTimeout(loadApp, 8000);
+                isAppLoaded = false;
+                setTimeout(loadApp, 2000);
             });
     };
 
-    loadApp();
+    // 3. A NAGY CSERE: Amikor az Angular betöltött, eltüntetjük a splash-t és mutatjuk a főablakot
+    mainWindow.once('ready-to-show', () => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close();
+        }
+        mainWindow.show();
+        mainWindow.maximize();
+    });
+
+    // FIGYELJÜK A JAVA LOGJÁT
+    backendProcess.stdout.on('data', (data) => {
+        const output = data.toString();
+        // Ha a Java végzett, rászólunk a rejtett főablakra, hogy töltse be az URL-t
+        if (output.includes('Started') || output.includes('Tomcat started on port')) {
+            setTimeout(loadApp, 500); 
+        }
+    });
+
+    // Biztonsági háló
+    setTimeout(() => {
+        if (!isAppLoaded) loadApp();
+    }, 15000);
 
     mainWindow.on('closed', function () {
         mainWindow = null;
@@ -72,36 +97,26 @@ function killJavaOnPort8080() {
     if (process.platform === 'win32') {
         try {
             const output = execSync('netstat -ano | findstr :8080').toString();
-            
             const lines = output.trim().split(/[\r\n]+/);
             lines.forEach(line => {
                 if (line.includes('LISTENING')) {
                     const parts = line.trim().split(/\s+/);
                     const pid = parts[parts.length - 1];
-                    
                     if (pid && parseInt(pid) > 0) {
-                        console.log(`Backend megtalalva a 8080-as porton. PID: ${pid}. Leallitas...`);
                         execSync(`taskkill /PID ${pid} /F`);
                     }
                 }
             });
-        } catch (e) {
-            console.log("Nem talalható folyamat a 8080-as porton, vagy mar leallt.");
-        }
-    } else {
-        try {
-            execSync('lsof -ti:8080 | xargs kill -9');
         } catch (e) {}
+    } else {
+        try { execSync('lsof -ti:8080 | xargs kill -9'); } catch (e) {}
     }
 }
 
 app.on('ready', createWindow);
 
 app.on('will-quit', () => {
-    if (backendProcess) {
-        backendProcess.kill(); 
-    }
-    
+    if (backendProcess) backendProcess.kill(); 
     killJavaOnPort8080();
 });
 
