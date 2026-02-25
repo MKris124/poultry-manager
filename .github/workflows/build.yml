@@ -74,17 +74,25 @@ jobs:
           Expand-Archive -Path launch4j.zip -DestinationPath launch4j_dir
           .\launch4j_dir\launch4j\launch4jc.exe puoultry_manager.xml
 
-      # 6. KARCSÚ ELECTRON CSOMAGOLÁS
+      # 6. KARCSÚ ELECTRON CSOMAGOLÁS ÉS AUTOMATA VERZIÓZÁS
       - name: Build Electron App
         shell: bash
         run: |
           npm install electron @electron/packager --save-dev
+          
           mkdir dist_temp
-          
-          # Hozzáadtuk a splash.html-t a listához!
           cp package.json main.js gooseicon.ico splash.html dist_temp/
-          
           cp -r backend_bin dist_temp/
+          
+          # +++ ÚJ: AUTOMATIKUS VERZIÓSZÁM BEÁLLÍTÁS +++
+          # 1. Kinyerjük a verziót a tag-ből (pl. "v1.0.9" -> "1.0.9")
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "Csomagolás verziója: $VERSION"
+          
+          # 2. Egy mini JS szkripttel átírjuk a bemásolt package.json "version" mezőjét
+          node -e "let p=require('./dist_temp/package.json'); p.version='$VERSION'; require('fs').writeFileSync('./dist_temp/package.json', JSON.stringify(p, null, 2));"
+          
+          # 3. Jöhet a csomagolás! Az Electron már a frissített verziószámot látja.
           npx @electron/packager ./dist_temp BaromfiMenedzser --platform=win32 --arch=x64 --icon=gooseicon.ico --out=./dist --overwrite
 
       # 7. FRISSÍTŐ ZIP ÉS TELEPÍTŐ

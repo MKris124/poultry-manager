@@ -418,7 +418,7 @@ export class PartnerDetailComponent implements OnChanges, OnInit {
 
       const colFields = this.selectedColumns.map(c => c.field);
       localStorage.setItem('poultry_cols', JSON.stringify(colFields));
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges();
   }
 
   getGrowerName(id: number): string {

@@ -64,13 +64,22 @@ function createWindow() {
             });
     };
 
-    // 3. A NAGY CSERE: Amikor az Angular betöltött, eltüntetjük a splash-t és mutatjuk a főablakot
     mainWindow.once('ready-to-show', () => {
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.close();
         }
         mainWindow.show();
         mainWindow.maximize();
+        
+        // UI frissítés kikényszerítése a PrimeNG fülek miatt
+        setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.executeJavaScript("window.dispatchEvent(new Event('resize'));");
+            }
+        }, 300);
+
+        // +++ ITT INDÍTJUK EL A FRISSÍTÉS KERESÉSÉT +++
+        setTimeout(checkForUpdates, 3000); // Adunk neki 3 mp-et, hogy nyugodtan betöltsön a felület
     });
 
     // FIGYELJÜK A JAVA LOGJÁT
@@ -123,3 +132,112 @@ app.on('will-quit', () => {
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
 });
+
+// ==========================================
+// AUTOMATIKUS FRISSÍTÉS (AUTO-UPDATER) MODUL
+// ==========================================
+const https = require('https');
+const fs = require('fs');
+const { dialog } = require('electron');
+
+const GITHUB_USER = 'MKris124'; 
+const GITHUB_REPO = 'poultry-manager';              
+
+function checkForUpdates() {
+    if (!app.isPackaged) return; 
+
+    const options = {
+        hostname: 'api.github.com',
+        path: `/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/latest`,
+        headers: { 'User-Agent': 'BaromfiMenedzser-AutoUpdater' }
+    };
+
+    https.get(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+            if (res.statusCode === 200) {
+                try {
+                    const release = JSON.parse(data);
+                    const latestVersion = release.tag_name.replace('v', '');
+                    const currentVersion = app.getVersion().replace('v', '');
+
+                    if (isNewerVersion(currentVersion, latestVersion)) {
+                        const updateAsset = release.assets.find(a => a.name === 'update.zip');
+                        if (updateAsset) {
+                            promptForUpdate(updateAsset.browser_download_url, latestVersion);
+                        }
+                    }
+                } catch (e) { console.error("Frissítés hiba:", e); }
+            }
+        });
+    }).on('error', (err) => console.log("Hálózati hiba a frissítésnél", err));
+}
+
+function isNewerVersion(current, latest) {
+    const c = current.split('.').map(Number);
+    const l = latest.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+        if ((l[i] || 0) > (c[i] || 0)) return true;
+        if ((l[i] || 0) < (c[i] || 0)) return false;
+    }
+    return false;
+}
+
+function promptForUpdate(downloadUrl, latestVersion) {
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Frissítés elérhető!',
+        message: `Egy új verzió (v${latestVersion}) érhető el a Baromfi Menedzserből.\nSzeretnéd most letölteni és telepíteni?`,
+        buttons: ['Igen, frissítés most', 'Később']
+    }).then(result => {
+        if (result.response === 0) {
+            downloadAndInstallUpdate(downloadUrl);
+        }
+    });
+}
+
+function downloadAndInstallUpdate(downloadUrl) {
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Frissítés folyamatban...',
+        message: 'A frissítés letöltése és telepítése megkezdődött. A program hamarosan újraindul...',
+        buttons: ['Rendben']
+    });
+
+    const tempDir = process.env.TEMP;
+    const zipPath = path.join(tempDir, 'baromfi_update.zip');
+    const extractPath = path.join(tempDir, 'baromfi_update_files');
+    const appPath = path.resolve(__dirname, '..', '..'); // A Program Files mappája
+    const batPath = path.join(tempDir, 'update_baromfi.bat');
+
+    // 1. Letöltés és kicsomagolás PowerShell segítségével
+    const psCommand = `
+        Invoke-WebRequest -Uri "${downloadUrl}" -OutFile "${zipPath}"
+        if (Test-Path "${extractPath}") { Remove-Item "${extractPath}" -Recurse -Force }
+        Expand-Archive -Path "${zipPath}" -DestinationPath "${extractPath}" -Force
+    `;
+
+    exec(`powershell -Command "${psCommand}"`, (error) => {
+        if (error) {
+            dialog.showErrorBox('Hiba', 'Nem sikerült letölteni a frissítést.');
+            return;
+        }
+
+        // 2. Létrehozunk egy háttérben futó .bat fájlt, ami felülírja a fájlokat
+        const batContent = `
+@echo off
+timeout /t 3 /nobreak > NUL
+xcopy /s /y /e "${extractPath}\\*" "${appPath}\\"
+start "" "${appPath}\\BaromfiMenedzser.exe"
+del "%~f0"
+        `;
+        fs.writeFileSync(batPath, batContent);
+
+        // 3. Elindítjuk a .bat fájlt Rendszergazdaként (hogy felül tudja írni a Program Files-t), majd kilépünk
+        const psRunAs = `Start-Process -FilePath "${batPath}" -WindowStyle Hidden -Verb RunAs`;
+        exec(`powershell -Command "${psRunAs}"`);
+        
+        app.quit();
+    });
+}
