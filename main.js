@@ -140,6 +140,7 @@ app.on('window-all-closed', function () {
 const https = require('https');
 const fs = require('fs');
 const { dialog } = require('electron');
+const AdmZip = require('adm-zip');
 
 const GITHUB_USER = 'MKris124'; 
 const GITHUB_REPO = 'poultry-manager';              
@@ -198,80 +199,89 @@ function promptForUpdate(downloadUrl, latestVersion) {
     });
 }
 
-function downloadAndInstallUpdate(downloadUrl) {
+function downloadZipFile(url, dest) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (response) => {
+            if (response.statusCode === 301 || response.statusCode === 302) {
+                return resolve(downloadZipFile(response.headers.location, dest));
+            }
+            if (response.statusCode !== 200) {
+                return reject(new Error(`Sikertelen letöltés. Hálózati kód: ${response.statusCode}`));
+            }
+            
+            const file = fs.createWriteStream(dest);
+            response.pipe(file);
+            
+            file.on('finish', () => {
+                file.close();
+                resolve();
+            });
+            file.on('error', (err) => {
+                fs.unlink(dest, () => {}); // Töröljük a hibás fájlt
+                reject(err);
+            });
+        }).on('error', (err) => {
+            fs.unlink(dest, () => {});
+            reject(err);
+        });
+    });
+}
+
+// Az új, PowerShell-mentes frissítő
+async function downloadAndInstallUpdate(downloadUrl) {
     dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Frissítés letöltése...',
-        message: 'A program a háttérben letölti a fájlokat. Ez az internetedtől függően pár másodperc. Kérlek várj a rendszergazdai ablakra!',
+        message: 'A program letölti és előkészíti a frissítést. Kérlek, várj türelemmel!',
         buttons: ['Rendben']
     });
 
     const tempDir = process.env.TEMP;
     const zipPath = path.join(tempDir, 'baromfi_update.zip');
     const extractPath = path.join(tempDir, 'baromfi_update_files');
-    const appPath = path.resolve(__dirname, '..', '..');
+    const appPath = path.resolve(__dirname, '..', '..'); 
     const batPath = path.join(tempDir, 'update_baromfi.bat');
 
-   
-    const psCommand = `
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri "${downloadUrl}" -OutFile "${zipPath}"
-        if (Test-Path "${extractPath}") { Remove-Item "${extractPath}" -Recurse -Force }
-        Expand-Archive -Path "${zipPath}" -DestinationPath "${extractPath}" -Force
-    `;
+    try {
+        // 1. Tiszta Node.js letöltés
+        await downloadZipFile(downloadUrl, zipPath);
 
-    exec(`powershell -Command "${psCommand}"`, (error) => {
-        if (error) {
-            dialog.showErrorBox('Hiba', `Nem sikerült letölteni a GitHubról!\n\n${error.message}`);
-            return;
-        }
+        // 2. Tiszta Node.js kicsomagolás (adm-zip)
+        const zip = new AdmZip(zipPath);
+        zip.extractAllTo(extractPath, true); // A 'true' felülírja a korábbi maradékokat
 
-        
+        // 3. A CMD .bat fájl létrehozása (Ezt nem tudjuk megúszni, mert a futó exe-t 
+        // a Windows nem engedi felülírni, amíg be nem zárjuk a programot).
         const batContent = `
 @echo off
-title Baromfi Menedzser Automata Frissito
+title Frissites...
 color 0A
-echo ===================================================
-echo BAROMFI MENEDZSER FRISSITES FOLYAMATBAN...
-echo ===================================================
-echo.
-echo Kerlek varj, amig a program leall (3 masodperc)...
 timeout /t 3 /nobreak > NUL
-
-echo Folyamatok kikenyszeritett bezarasa...
 taskkill /F /IM "BaromfiMenedzser.exe" > NUL 2>&1
 taskkill /F /IM "java.exe" > NUL 2>&1
 timeout /t 2 /nobreak > NUL
 
-echo.
-echo Fajlok felulirasa a Program Files mappaban...
 xcopy /s /y /e "${extractPath}\\*" "${appPath}\\"
 
-if %errorlevel% neq 0 (
-    color 4F
-    echo.
-    echo ===================================================
-    echo HIBA TORTENT A MASOLAS KOZBEN!
-    echo ===================================================
-    echo Valoszinuleg a program meg fut a hatterben, vagy nincs jogod felulirni a mappat.
-    echo Kerlek fotozd le ezt a kepernyot!
-    pause
-    exit
-)
-
-echo.
-echo Frissites sikeres! Ujrainditas...
 start "" "${appPath}\\BaromfiMenedzser.exe"
 del "%~f0"
         `;
         
         fs.writeFileSync(batPath, batContent);
 
+        // 4. BAT fájl futtatása (Rendszergazdaként, de már NEM PowerShellből!)
+        const { exec } = require('child_process');
+        // VBScript-et használunk, hogy csendben, fekete ablak nélkül kérjen Rendszergazdai jogot
+        const vbsPath = path.join(tempDir, 'run_admin.vbs');
+        const vbsContent = `CreateObject("Shell.Application").ShellExecute "${batPath}", "", "", "runas", 1`;
+        fs.writeFileSync(vbsPath, vbsContent);
         
-        const psRunAs = `Start-Process -FilePath "${batPath}" -Verb RunAs`;
-        exec(`powershell -Command "${psRunAs}"`);
+        exec(`cscript //nologo "${vbsPath}"`);
         
-        
+        // 5. Kilépés, hogy a BAT fájl felülírhassa a fájlokat
         app.quit();
-    });
+
+    } catch (error) {
+        dialog.showErrorBox('Hiba a frissítés során', `Nem sikerült letölteni vagy kicsomagolni a fájlt.\n\nOk: ${error.message}`);
+    }
 }
