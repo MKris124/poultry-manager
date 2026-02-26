@@ -78,6 +78,10 @@ jobs:
           mkdir dist_temp
           cp package.json main.js gooseicon.ico splash.html dist_temp/
           cp -r backend_bin dist_temp/
+
+          cd dist_temp
+          npm install --omit=dev
+          cd ..
           
           VERSION=${GITHUB_REF_NAME#v}
           echo "Csomagolás verziója: $VERSION"
