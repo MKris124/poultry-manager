@@ -64,28 +64,35 @@ function createWindow() {
             });
     };
 
-    mainWindow.once('ready-to-show', () => {
-        if (splashWindow && !splashWindow.isDestroyed()) {
-            splashWindow.close();
-        }
-        mainWindow.show();
-        mainWindow.maximize();
-        
+    let hasReloaded = false;
 
-        // +++ ITT INDÍTJUK EL A FRISSÍTÉS KERESÉSÉT +++
-        setTimeout(checkForUpdates, 3000); // Adunk neki 3 mp-et, hogy nyugodtan betöltsön a felület
+    mainWindow.on('ready-to-show', () => {
+        if (!hasReloaded) {
+            console.log("Elso betoltes kesz. Titkos hatter-frissites (Ctrl+R) inditasa...");
+            hasReloaded = true;
+            mainWindow.webContents.reload();
+            
+        } else {
+            console.log("Masodik betoltes kesz. Ablak megjelenitese.");
+            
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                splashWindow.close();
+            }
+            
+            mainWindow.show();
+            mainWindow.maximize();
+
+            setTimeout(checkForUpdates, 3000);
+        }
     });
 
-    // FIGYELJÜK A JAVA LOGJÁT
     backendProcess.stdout.on('data', (data) => {
         const output = data.toString();
-        // Ha a Java végzett, rászólunk a rejtett főablakra, hogy töltse be az URL-t
         if (output.includes('Started') || output.includes('Tomcat started on port')) {
             setTimeout(loadApp, 500); 
         }
     });
 
-    // Biztonsági háló
     setTimeout(() => {
         if (!isAppLoaded) loadApp();
     }, 15000);
@@ -202,10 +209,10 @@ function downloadAndInstallUpdate(downloadUrl) {
     const tempDir = process.env.TEMP;
     const zipPath = path.join(tempDir, 'baromfi_update.zip');
     const extractPath = path.join(tempDir, 'baromfi_update_files');
-    const appPath = path.resolve(__dirname, '..', '..'); // A Program Files mappája
+    const appPath = path.resolve(__dirname, '..', '..');
     const batPath = path.join(tempDir, 'update_baromfi.bat');
 
-    // 1. Letöltés és kicsomagolás kényszerített TLS 1.2-vel
+   
     const psCommand = `
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri "${downloadUrl}" -OutFile "${zipPath}"
@@ -219,7 +226,7 @@ function downloadAndInstallUpdate(downloadUrl) {
             return;
         }
 
-        // 2. A LÁTHATÓ Frissítő Szkript (Nincs többé elrejtve!)
+        
         const batContent = `
 @echo off
 title Baromfi Menedzser Automata Frissito
@@ -260,11 +267,11 @@ del "%~f0"
         
         fs.writeFileSync(batPath, batContent);
 
-        // 3. Futtatás RENDSZERGZADAKÉNT, LÁTHATÓ ablakkal
+        
         const psRunAs = `Start-Process -FilePath "${batPath}" -Verb RunAs`;
         exec(`powershell -Command "${psRunAs}"`);
         
-        // 4. Electron kilépése
+        
         app.quit();
     });
 }

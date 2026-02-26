@@ -17,6 +17,8 @@ export class AppComponent implements OnInit {
   title = 'Baromfi Menedzser';
   isDarkMode: boolean = false;
 
+  appVersion: string = 'v1.0.1';
+
   ngOnInit() {
     if (!sessionStorage.getItem('first_reload_done')) {
       
