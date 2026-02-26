@@ -1,29 +1,32 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const { spawn, execSync } = require('child_process');
+const https = require('https');
+const fs = require('fs');
+const AdmZip = require('adm-zip');
 
 let mainWindow;
-let splashWindow; // ÚJ: Töltőképernyő változó
+let splashWindow; 
 let backendProcess;
 
 function createWindow() {
-    // 1. TÖLTŐKÉPERNYŐ LÉTREHOZÁSA (Azonnal megjelenik)
+    // 1. TÖLTŐKÉPERNYŐ LÉTREHOZÁSA
     splashWindow = new BrowserWindow({
         width: 450,
         height: 300,
-        frame: false,       // Ne legyen Windows ablakkerete (szebb így)
-        alwaysOnTop: true,  // Maradjon legfelül, amíg tölt
+        frame: false,       
+        alwaysOnTop: true,  
         center: true,
         transparent: false,
         icon: path.join(__dirname, 'gooseicon.ico')
     });
     splashWindow.loadFile('splash.html');
 
-    // 2. FŐABLAK LÉTREHOZÁSA (De egyelőre rejtve tartjuk!)
+    // 2. FŐABLAK LÉTREHOZÁSA
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
-        show: false, // FONTOS: Rejtve indul!
+        show: false, 
         title: "Baromfi Menedzser",
         icon: path.join(__dirname, 'gooseicon.ico'), 
         webPreferences: {
@@ -137,10 +140,6 @@ app.on('window-all-closed', function () {
 // ==========================================
 // AUTOMATIKUS FRISSÍTÉS (AUTO-UPDATER) MODUL
 // ==========================================
-const https = require('https');
-const fs = require('fs');
-const { dialog } = require('electron');
-const AdmZip = require('adm-zip');
 
 const GITHUB_USER = 'MKris124'; 
 const GITHUB_REPO = 'poultry-manager';              
@@ -217,7 +216,7 @@ function downloadZipFile(url, dest) {
                 resolve();
             });
             file.on('error', (err) => {
-                fs.unlink(dest, () => {}); // Töröljük a hibás fájlt
+                fs.unlink(dest, () => {}); 
                 reject(err);
             });
         }).on('error', (err) => {
@@ -227,14 +226,67 @@ function downloadZipFile(url, dest) {
     });
 }
 
-// Az új, PowerShell-mentes frissítő
+// +++ A VÉGLEGES, GRAFIKUS, LÁTHATATLAN FRISSÍTŐ +++
 async function downloadAndInstallUpdate(downloadUrl) {
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Frissítés letöltése...',
-        message: 'A program letölti és előkészíti a frissítést. Kérlek, várj türelemmel!',
-        buttons: ['Rendben']
+    const userChoice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'question',
+        title: 'Frissítés telepítése',
+        message: 'A program most letölti és telepíti a frissítést.\nKözben a főablak bezáródik. Folytathatjuk?',
+        buttons: ['Igen, induljon a frissítés', 'Mégsem']
     });
+
+    if (userChoice !== 0) return;
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+    }
+
+    const updateWindow = new BrowserWindow({
+        width: 450,
+        height: 300,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        webPreferences: { nodeIntegration: false }
+    });
+
+    const updateHtml = `
+    <!DOCTYPE html>
+    <html lang="hu">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body { 
+                font-family: 'Segoe UI', sans-serif; 
+                background: #ffffff; 
+                display: flex; flex-direction: column; align-items: center; justify-content: center; 
+                height: 100vh; margin: 0; 
+                border: 2px solid #10b981; border-radius: 12px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                overflow: hidden; 
+                box-sizing: border-box;
+            }
+            .spinner { 
+                border: 4px solid #f3f3f3; border-top: 4px solid #10b981; 
+                border-radius: 50%; width: 60px; height: 60px; 
+                animation: spin 1s linear infinite; margin-bottom: 20px; 
+            }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            h2 { color: #1f2937; margin: 0 0 10px; font-size: 1.4rem; }
+            p { color: #6b7280; margin: 0; font-size: 0.95rem; text-align: center; padding: 0 20px; }
+            .icon { font-size: 3rem; margin-bottom: 15px; }
+        </style>
+    </head>
+    <body>
+        <div class="icon">🐔</div>
+        <div class="spinner"></div>
+        <h2>Frissítés letöltése...</h2>
+        <p>Kérlek várj, az új verzió előkészítése folyamatban van. Ez beletelhet néhány másodpercbe.</p>
+    </body>
+    </html>
+    `;
+
+    updateWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(updateHtml));
 
     const tempDir = process.env.TEMP;
     const zipPath = path.join(tempDir, 'baromfi_update.zip');
@@ -243,45 +295,36 @@ async function downloadAndInstallUpdate(downloadUrl) {
     const batPath = path.join(tempDir, 'update_baromfi.bat');
 
     try {
-        // 1. Tiszta Node.js letöltés
         await downloadZipFile(downloadUrl, zipPath);
-
-        // 2. Tiszta Node.js kicsomagolás (adm-zip)
         const zip = new AdmZip(zipPath);
-        zip.extractAllTo(extractPath, true); // A 'true' felülírja a korábbi maradékokat
+        zip.extractAllTo(extractPath, true); 
 
-        // 3. A CMD .bat fájl létrehozása (Ezt nem tudjuk megúszni, mert a futó exe-t 
-        // a Windows nem engedi felülírni, amíg be nem zárjuk a programot).
         const batContent = `
 @echo off
-title Frissites...
-color 0A
 timeout /t 3 /nobreak > NUL
 taskkill /F /IM "BaromfiMenedzser.exe" > NUL 2>&1
 taskkill /F /IM "java.exe" > NUL 2>&1
 timeout /t 2 /nobreak > NUL
-
 xcopy /s /y /e "${extractPath}\\*" "${appPath}\\"
-
 start "" "${appPath}\\BaromfiMenedzser.exe"
 del "%~f0"
         `;
-        
         fs.writeFileSync(batPath, batContent);
 
-        // 4. BAT fájl futtatása (Rendszergazdaként, de már NEM PowerShellből!)
         const { exec } = require('child_process');
-        // VBScript-et használunk, hogy csendben, fekete ablak nélkül kérjen Rendszergazdai jogot
         const vbsPath = path.join(tempDir, 'run_admin.vbs');
-        const vbsContent = `CreateObject("Shell.Application").ShellExecute "${batPath}", "", "", "runas", 1`;
+        // A végén a 0 jelenti azt, hogy REJTETT ABLAKBAN fusson!
+        const vbsContent = `CreateObject("Shell.Application").ShellExecute "${batPath}", "", "", "runas", 0`;
         fs.writeFileSync(vbsPath, vbsContent);
         
         exec(`cscript //nologo "${vbsPath}"`);
         
-        // 5. Kilépés, hogy a BAT fájl felülírhassa a fájlokat
+        if (!updateWindow.isDestroyed()) updateWindow.close();
         app.quit();
 
     } catch (error) {
-        dialog.showErrorBox('Hiba a frissítés során', `Nem sikerült letölteni vagy kicsomagolni a fájlt.\n\nOk: ${error.message}`);
+        if (!updateWindow.isDestroyed()) updateWindow.close();
+        dialog.showErrorBox('Hiba a frissítés során', `Nem sikerült letölteni a fájlt.\n\n${error.message}`);
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show(); 
     }
 }
