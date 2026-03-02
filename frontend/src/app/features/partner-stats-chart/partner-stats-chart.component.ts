@@ -10,7 +10,7 @@ import { ChartModule } from 'primeng/chart';
 })
 export class PartnerStatsChartComponent implements OnChanges {
   @Input() shipments: any[] = [];
-  @Input() label: string = 'Partner teljesítmény'; // pl. Partner neve vagy Csoport neve
+  @Input() label: string = 'Partner teljesítmény';
 
   lineData: any;
   lineOptions: any;
@@ -95,6 +95,5 @@ export class PartnerStatsChartComponent implements OnChanges {
       }
     };
     
-    // Itt készíthetsz további diagramokat (pl. elhullás) is...
   }
 }

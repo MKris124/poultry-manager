@@ -67,7 +67,7 @@ export class PartnerListComponent implements OnInit, OnDestroy {
         this.disableSidebarAnim = true;
         this.sidebarVisible = false;
         this.selectedPartner = null;
-        this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+        this.cdr.detectChanges();
       });
   }
 
@@ -80,7 +80,7 @@ export class PartnerListComponent implements OnInit, OnDestroy {
   onSidebarHide() {
       this.selectedPartner = null;
       this.disableSidebarAnim = false; 
-      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+      this.cdr.detectChanges();
   }
 
   loadPartners() {
@@ -92,12 +92,12 @@ export class PartnerListComponent implements OnInit, OnDestroy {
         _firstCity: p.locations?.[0]?.city || '',
         _firstCounty: p.locations?.[0]?.county || ''
       }));
-      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+      this.cdr.detectChanges();
     },
     error: (err) => {
       console.error('Hiba a partnerek betöltésekor:', err);
       this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült betölteni a partnereket.'});
-      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+      this.cdr.detectChanges();
     }
   });
 }
@@ -105,13 +105,13 @@ export class PartnerListComponent implements OnInit, OnDestroy {
   onDataChanged() {
     this.loadPartners();
     this.selectedPartners = [];
-    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+    this.cdr.detectChanges();
   }
 
   openCreateGroupDialog() {
     if (this.selectedPartners.length > 1) {
         this.groupDialog.show(this.selectedPartners);
-        this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+        this.cdr.detectChanges();
     }
   }
 
@@ -128,7 +128,7 @@ export class PartnerListComponent implements OnInit, OnDestroy {
 
     this.selectedPartner = virtualLocationPartner;
     this.sidebarVisible = true;
-    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+    this.cdr.detectChanges();
   }
 
   deleteGroupOfPartner(partner: any) {
@@ -146,11 +146,11 @@ export class PartnerListComponent implements OnInit, OnDestroy {
                 next: () => {
                     this.messageService.add({severity:'success', summary:'Siker', detail:'Csoport felbontva'});
                     this.loadPartners();
-                    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+                    this.cdr.detectChanges();
                 },
                 error: () => {
                     this.messageService.add({severity:'error', summary:'Hiba', detail:'Sikertelen művelet'});
-                    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+                    this.cdr.detectChanges();
                 }
              });
         }
@@ -161,7 +161,7 @@ export class PartnerListComponent implements OnInit, OnDestroy {
     this.disableSidebarAnim = false; 
     this.selectedPartner = partner;
     this.sidebarVisible = true;
-    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+    this.cdr.detectChanges();
   }
 
   openGroupStats() {
@@ -180,20 +180,20 @@ export class PartnerListComponent implements OnInit, OnDestroy {
     this.selectedPartner = virtualPartner;
     this.disableSidebarAnim = false;
     this.sidebarVisible = true;
-    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+    this.cdr.detectChanges();
   }
 
   onPartnerCreated() {
     this.loadPartners();
     this.messageService.add({severity:'success', summary:'Siker', detail:'Művelet sikeres.'});
-    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+    this.cdr.detectChanges();
   }
 
   exportSelectedData() {
     if (this.selectedPartners.length === 0) return;
     const ids = this.selectedPartners.map(p => p.id);
     this.messageService.add({severity:'info', summary:'Exportálás...', detail:'Fájl generálása...'});
-    this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+    this.cdr.detectChanges();
 
     this.shipmentService.downloadExport(ids).subscribe({
       next: (blob) => {
@@ -204,18 +204,18 @@ export class PartnerListComponent implements OnInit, OnDestroy {
         a.click();
         window.URL.revokeObjectURL(url);
         this.messageService.add({severity:'success', summary:'Kész', detail:'Letöltés kész.'});
-        this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+        this.cdr.detectChanges();
       },
       error: () => {
         this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült az exportálás.'});
-        this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+        this.cdr.detectChanges();
       }
     });
   }
 
   editPartner(partner: any) {
       this.createDialog.showEdit(partner);
-      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+      this.cdr.detectChanges();
   }
 
   deletePartner(event: Event, partner: any) {
@@ -232,11 +232,11 @@ export class PartnerListComponent implements OnInit, OnDestroy {
                   next: () => {
                       this.messageService.add({severity:'success', summary:'Törölve', detail:'Partner eltávolítva.'});
                       this.loadPartners();
-                      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+                      this.cdr.detectChanges();
                   },
                   error: () => {
                       this.messageService.add({severity:'error', summary:'Hiba', detail:'Törlés nem sikerült (lehet, hogy van szállítmánya).'});
-                      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+                      this.cdr.detectChanges();
                   }
               });
           }
@@ -258,11 +258,11 @@ export class PartnerListComponent implements OnInit, OnDestroy {
                       this.messageService.add({severity:'success', summary:'Törölve', detail:'Az adatbázis sikeresen kiürítve.'});
                       this.selectedPartners = [];
                       this.loadPartners();
-                      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+                      this.cdr.detectChanges();
                   },
                   error: () => {
                       this.messageService.add({severity:'error', summary:'Hiba', detail:'Nem sikerült a törlés.'});
-                      this.cdr.detectChanges(); // AZONNALI FRISSÍTÉS
+                      this.cdr.detectChanges(); 
                   }
               });
           }

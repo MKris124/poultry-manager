@@ -59,14 +59,14 @@ export class LeaderboardComponent implements OnInit {
 
   constructor(
     private analyticsService: AnalyticsService,
-    private cdr: ChangeDetectorRef // <--- HOZZÁADVA
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
     this.analyticsService.getLeaderboard().subscribe(data => {
       this.originalData = data;
       this.updateSorting(); 
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges();
     });
   }
 
@@ -95,7 +95,7 @@ export class LeaderboardComponent implements OnInit {
         originalRank: index + 1
     }));
     
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   isActiveColumn(col: string): boolean {
@@ -119,7 +119,7 @@ export class LeaderboardComponent implements OnInit {
     else next[id] = true;
 
     this.expandedRows = next;
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   onRowClick(partner: any) {
@@ -136,13 +136,13 @@ export class LeaderboardComponent implements OnInit {
         };
         this.sidebarVisible = true;
         this.disableSidebarAnim = false;
-        this.cdr.detectChanges(); // <--- HOZZÁADVA
+        this.cdr.detectChanges();
     }
   }
 
   onSidebarHide() {
     this.selectedPartner = null;
     this.disableSidebarAnim = false;
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 }

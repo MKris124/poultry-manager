@@ -226,7 +226,6 @@ function downloadZipFile(url, dest) {
     });
 }
 
-// +++ A VÉGLEGES, GRAFIKUS, LÁTHATATLAN FRISSÍTŐ +++
 async function downloadAndInstallUpdate(downloadUrl) {
     const userChoice = dialog.showMessageBoxSync(mainWindow, {
         type: 'question',
@@ -313,7 +312,6 @@ del "%~f0"
 
         const { exec } = require('child_process');
         const vbsPath = path.join(tempDir, 'run_admin.vbs');
-        // A végén a 0 jelenti azt, hogy REJTETT ABLAKBAN fusson!
         const vbsContent = `CreateObject("Shell.Application").ShellExecute "${batPath}", "", "", "runas", 0`;
         fs.writeFileSync(vbsPath, vbsContent);
         

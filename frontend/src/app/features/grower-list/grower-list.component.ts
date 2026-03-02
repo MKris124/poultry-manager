@@ -41,7 +41,7 @@ export class GrowerListComponent implements OnInit {
     private growerService: GrowerService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private cdr: ChangeDetectorRef // <--- HOZZÁADVA
+    private cdr: ChangeDetectorRef 
   ) {}
 
   ngOnInit() {
@@ -51,14 +51,14 @@ export class GrowerListComponent implements OnInit {
   loadGrowers() {
     this.growerService.getAllGrowers().subscribe(data => {
       this.growers = data;
-      this.cdr.detectChanges(); // <--- HOZZÁADVA
+      this.cdr.detectChanges();
     });
   }
 
   editGrower(grower: any, event: Event) {
     event.stopPropagation();
     this.createDialog.edit(grower); 
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   deleteGrower(grower: any, event: Event) {
@@ -76,11 +76,11 @@ export class GrowerListComponent implements OnInit {
                 next: () => {
                     this.messageService.add({severity:'success', summary:'Törölve', detail: 'Nevelő sikeresen törölve.'});
                     this.loadGrowers();
-                    this.cdr.detectChanges(); // <--- HOZZÁADVA
+                    this.cdr.detectChanges();
                 },
                 error: () => {
                     this.messageService.add({severity:'error', summary:'Hiba', detail: 'Nem sikerült a törlés (lehet, hogy van hozzárendelt adat).'});
-                    this.cdr.detectChanges(); // <--- HOZZÁADVA
+                    this.cdr.detectChanges();
                 }
             });
         }
@@ -102,7 +102,7 @@ export class GrowerListComponent implements OnInit {
     }
 
     this.expandedRows = next; 
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   openGrowerStats(grower: any) {
@@ -113,11 +113,11 @@ export class GrowerListComponent implements OnInit {
         name: grower.name + (grower.city ? ` (${grower.city})` : '')
     };
     this.sidebarVisible = true;
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 
   onSidebarHide() {
     this.selectedGrower = null;
-    this.cdr.detectChanges(); // <--- HOZZÁADVA
+    this.cdr.detectChanges();
   }
 }
