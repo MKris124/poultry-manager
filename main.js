@@ -142,10 +142,13 @@ app.on('window-all-closed', function () {
 // ==========================================
 
 const GITHUB_USER = 'MKris124'; 
-const GITHUB_REPO = 'poultry-manager';              
+const GITHUB_REPO = 'poultry-manager';
+let updateChecked = false;             
 
 function checkForUpdates() {
-    if (!app.isPackaged) return; 
+    if (!app.isPackaged) return;
+    if (updateChecked) return;
+    updateChecked = true;
 
     const options = {
         hostname: 'api.github.com',
